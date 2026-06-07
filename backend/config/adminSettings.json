@@ -1,0 +1,14 @@
+{
+  "universityName": "QuizAI University",
+  "adminEmail": "admin@quizai.edu",
+  "claudeApiKeyConfigured": false,
+  "questionsPerUpload": 5,
+  "questionTypes": ["mcq", "tf", "short"],
+  "antiCheatSensitivity": 75,
+  "toggles": {
+    "liveBattles": true,
+    "antigravity": true,
+    "voiceQuiz": false,
+    "peerQuiz": false
+  }
+}
