@@ -151,6 +151,25 @@ export default function QuizScreen({ route, navigation }) {
       const scorePercentage = Math.round((correctCount / finalResponses.length) * 100);
       const timeTaken = Math.round((Date.now() - startTime) / 1000);
 
+      // Handle duels challenge or complete
+      if (route.params?.duelChallenge) {
+        try {
+          await api.challengePeer(
+            route.params.duelChallenge.challengedUsername,
+            quizId,
+            correctCount
+          );
+        } catch (duelErr) {
+          console.warn('Failed to initiate duel challenge:', duelErr);
+        }
+      } else if (route.params?.activeDuelId) {
+        try {
+          await api.completeDuel(route.params.activeDuelId, correctCount);
+        } catch (duelErr) {
+          console.warn('Failed to complete duel challenge:', duelErr);
+        }
+      }
+
       const result = await api.submitQuizScore(
         quizId, 
         correctCount, 
@@ -221,7 +240,21 @@ export default function QuizScreen({ route, navigation }) {
       {/* Question Card */}
       <View style={styles.card}>
         <View style={styles.metaRow}>
-          <Text style={styles.topicBadge}>{currentQuestion.topic}</Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Text style={styles.topicBadge}>{currentQuestion.topic}</Text>
+            {currentQuestion._id && (
+              <TouchableOpacity 
+                style={styles.discussBadge}
+                onPress={() => navigation.navigate('Discussion', {
+                  questionId: currentQuestion._id,
+                  questionText: currentQuestion.text,
+                  quizId: quizId
+                })}
+              >
+                <Text style={styles.discussBadgeText}>💬 Discuss</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={[
             styles.difficultyBadge, 
             currentQuestion.difficulty === 'easy' && styles.easyDiff,
@@ -350,13 +383,33 @@ export default function QuizScreen({ route, navigation }) {
               </ScrollView>
             )}
 
-            <TouchableOpacity 
-              activeOpacity={0.8} 
-              style={styles.modalCloseBtn}
-              onPress={handleCloseExplanation}
-            >
-              <Text style={styles.modalCloseText}>Understood, Continue</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                style={[styles.modalCloseBtn, { flex: 1 }]}
+                onPress={handleCloseExplanation}
+              >
+                <Text style={styles.modalCloseText}>Continue</Text>
+              </TouchableOpacity>
+              
+              {currentQuestion._id && (
+                <TouchableOpacity 
+                  activeOpacity={0.8} 
+                  style={styles.modalDiscussBtn}
+                  onPress={() => {
+                    setExplanationModalVisible(false);
+                    setTempWrongAnswerInfo(null);
+                    navigation.navigate('Discussion', {
+                      questionId: currentQuestion._id,
+                      questionText: currentQuestion.text,
+                      quizId: quizId
+                    });
+                  }}
+                >
+                  <Text style={styles.modalDiscussBtnText}>💬 Discuss</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -426,6 +479,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 20,
     textTransform: 'uppercase',
+  },
+  discussBadge: {
+    backgroundColor: '#1E293B',
+    borderColor: '#818CF8',
+    borderWidth: 1,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  discussBadgeText: {
+    color: '#818CF8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  modalDiscussBtn: {
+    backgroundColor: '#312E81',
+    borderColor: '#4338CA',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalDiscussBtnText: {
+    color: '#818CF8',
+    fontSize: 13,
+    fontWeight: '700',
   },
   difficultyBadge: {
     fontSize: 11,

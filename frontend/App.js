@@ -20,6 +20,9 @@ import BattleLobbyScreen from './src/screens/BattleLobbyScreen';
 import BattleScreen from './src/screens/BattleScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import StudyPlannerScreen from './src/screens/StudyPlannerScreen';
+import GroupsListScreen from './src/screens/GroupsListScreen';
+import GroupDetailScreen from './src/screens/GroupDetailScreen';
+import DiscussionScreen from './src/screens/DiscussionScreen';
 
 const Stack = createStackNavigator();
 
@@ -100,6 +103,11 @@ function AppNavigation() {
           {/* Gamification & AI Planner */}
           <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
           <Stack.Screen name="StudyPlanner" component={StudyPlannerScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
+
+          {/* Social & Community Screens */}
+          <Stack.Screen name="GroupsList" component={GroupsListScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
+          <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
+          <Stack.Screen name="Discussion" component={DiscussionScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
         </Stack.Navigator>
       </NavigationContainer>
     </View>

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert, 
-  ActivityIndicator, 
-  Modal, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Modal,
   RefreshControl,
   Platform
 } from 'react-native';
@@ -17,15 +17,16 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { api } from '../services/api';
 import { clearAuth } from '../utils/storage';
 import { scheduleSmartReminders } from '../utils/notifications';
+import { getSocket, connectSocket } from '../services/socket';
 
 export default function StudentDashboard({ navigation }) {
   const isFocused = useIsFocused();
   const [user, setUser] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
-  
+
   const [enrollCode, setEnrollCode] = useState('');
   const [battleCode, setBattleCode] = useState('');
-  
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [enrollLoading, setEnrollLoading] = useState(false);
@@ -36,6 +37,14 @@ export default function StudentDashboard({ navigation }) {
   const [modalCourse, setModalCourse] = useState(null);
   const [modalQuizzes, setModalQuizzes] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // Social & Community State
+  const [activityFeed, setActivityFeed] = useState([]);
+  const [activeDuels, setActiveDuels] = useState([]);
+  const [duelUsername, setDuelUsername] = useState('');
+  const [selectedDuelQuizId, setSelectedDuelQuizId] = useState(null);
+  const [duelCourseQuizzes, setDuelCourseQuizzes] = useState({});
+  const [challengeModalVisible, setChallengeModalVisible] = useState(false);
 
   useEffect(() => {
     if (isFocused) {
@@ -51,6 +60,13 @@ export default function StudentDashboard({ navigation }) {
 
       const metrics = await api.getStudentDashboard();
       setDashboardData(metrics);
+
+      try {
+        const duels = await api.getActiveDuels();
+        setActiveDuels(duels);
+      } catch (duelErr) {
+        console.warn('Failed to load active duels:', duelErr);
+      }
 
       scheduleSmartReminders(profile.activeTimes, metrics.streak, profile.lastActiveDate).catch(e =>
         console.warn('Failed to schedule notifications:', e)
@@ -70,6 +86,13 @@ export default function StudentDashboard({ navigation }) {
       const metrics = await api.getStudentDashboard();
       setDashboardData(metrics);
 
+      try {
+        const duels = await api.getActiveDuels();
+        setActiveDuels(duels);
+      } catch (duelErr) {
+        console.warn('Failed to load active duels:', duelErr);
+      }
+
       scheduleSmartReminders(profile.activeTimes, metrics.streak, profile.lastActiveDate).catch(e =>
         console.warn('Failed to schedule notifications:', e)
       );
@@ -79,6 +102,33 @@ export default function StudentDashboard({ navigation }) {
       setRefreshing(false);
     }
   }, []);
+
+  const socketRef = React.useRef(null);
+
+  useEffect(() => {
+    if (isFocused && user && dashboardData?.courses) {
+      const socket = connectSocket(user._id, user.name);
+      socketRef.current = socket;
+
+      dashboardData.courses.forEach(course => {
+        socket.emit('join_course_feed', { courseId: course._id });
+      });
+
+      socket.off('activity_feed_event');
+      socket.on('activity_feed_event', (event) => {
+        setActivityFeed(prev => {
+          if (prev.some(e => e.createdAt === event.createdAt && e.type === event.type)) return prev;
+          return [event, ...prev].slice(0, 10);
+        });
+      });
+    }
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.off('activity_feed_event');
+      }
+    };
+  }, [isFocused, user, dashboardData?.courses]);
 
   const handleEnroll = async () => {
     if (!enrollCode) {
@@ -118,8 +168,8 @@ export default function StudentDashboard({ navigation }) {
         firstCourseId
       );
       Alert.alert('AI Generated Quiz', 'Focused practice quiz has been generated for you!', [
-        { 
-          text: 'Start Now ↗', 
+        {
+          text: 'Start Now ↗',
           onPress: () => navigation.navigate('Quiz', { quizId: practiceQuiz._id })
         }
       ]);
@@ -235,13 +285,13 @@ export default function StudentDashboard({ navigation }) {
 
   return (
     <View style={styles.outerContainer}>
-      <ScrollView 
-        style={styles.container} 
+      <ScrollView
+        style={styles.container}
         contentContainerStyle={styles.contentContainer}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor="#6366F1"
             colors={['#6366F1']}
           />
@@ -257,14 +307,14 @@ export default function StudentDashboard({ navigation }) {
               <Text style={styles.welcomeText}>Welcome back</Text>
               <Text style={styles.userName} numberOfLines={1}>{user?.name || 'Student'}</Text>
             </View>
-            
+
             {/* Streak Badge */}
             <View style={styles.streakBadge}>
               <Text style={styles.streakEmoji}>🔥</Text>
               <Text style={styles.streakText}>{streak} day streak</Text>
             </View>
           </View>
-          
+
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
@@ -288,7 +338,7 @@ export default function StudentDashboard({ navigation }) {
 
         {/* Action Navigation Hub */}
         <View style={styles.actionHubRow}>
-          <TouchableOpacity 
+          <TouchableOpacity
             activeOpacity={0.8}
             style={styles.hubBtn}
             onPress={() => navigation.navigate('Leaderboard')}
@@ -297,7 +347,16 @@ export default function StudentDashboard({ navigation }) {
             <Text style={styles.hubBtnText}>Leaderboards</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.hubBtn}
+            onPress={() => navigation.navigate('GroupsList')}
+          >
+            <Text style={styles.hubBtnEmoji}>👥</Text>
+            <Text style={styles.hubBtnText}>Study Groups</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             activeOpacity={0.8}
             style={styles.hubBtn}
             onPress={() => navigation.navigate('StudyPlanner')}
@@ -314,13 +373,13 @@ export default function StudentDashboard({ navigation }) {
             <Text style={styles.statValueWhite}>{quizzesCount}</Text>
           </View>
           <View style={styles.statDivider} />
-          
+
           <View style={styles.statColumn}>
             <Text style={styles.statLabel}>Avg score</Text>
             <Text style={styles.statValueGreen}>{avgScore}%</Text>
           </View>
           <View style={styles.statDivider} />
-          
+
           <View style={styles.statColumn}>
             <Text style={styles.statLabel}>Badges</Text>
             <Text style={styles.statValueIndigo}>{badgesCount}</Text>
@@ -335,12 +394,12 @@ export default function StudentDashboard({ navigation }) {
               <Text style={styles.dueTitle}>Due for Review</Text>
             </View>
             <Text style={styles.dueSubtitle}>Spaced Repetition Scheduler indicates you should review these topics:</Text>
-            
+
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dueScroll}>
               {dueTopics.map((item, idx) => (
                 <View key={idx} style={styles.dueItemCard}>
                   <Text style={styles.dueItemTopic} numberOfLines={1}>{item.topic}</Text>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.dueReviewBtn}
                     onPress={async () => {
                       try {
@@ -369,7 +428,7 @@ export default function StudentDashboard({ navigation }) {
             <Text style={styles.insightIcon}>✨</Text>
             <Text style={styles.insightLabel}>AI insight</Text>
           </View>
-          
+
           <Text style={styles.insightBodyText}>
             {aiInsightText.split(dashboardData?.aiInsight?.weakTopic || 'Database Normalization').map((part, index, arr) => (
               <React.Fragment key={index}>
@@ -383,8 +442,8 @@ export default function StudentDashboard({ navigation }) {
             ))}
           </Text>
 
-          <TouchableOpacity 
-            style={styles.practiceBtn} 
+          <TouchableOpacity
+            style={styles.practiceBtn}
             onPress={handlePracticeWeakTopic}
             disabled={practiceLoading || !dashboardData?.aiInsight?.weakTopic}
           >
@@ -399,6 +458,100 @@ export default function StudentDashboard({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* Class Activity Feed */}
+        <View style={styles.activityCard}>
+          <Text style={styles.activityTitle}>📢 Class Activity Feed</Text>
+          {activityFeed.length === 0 ? (
+            <Text style={styles.emptyActivityText}>No recent class activity. Real-time updates will show up here!</Text>
+          ) : (
+            activityFeed.map((event, idx) => (
+              <View key={idx} style={styles.activityItem}>
+                <Text style={styles.activityItemText}>
+                  {event.type === 'battle_created' && `⚔️ ${event.studentName} opened a battle room! Code: ${event.roomCode} for "${event.quizTitle}"`}
+                  {event.type === 'quiz_published' && `📚 Professor published a new quiz: "${event.quizTitle}"!`}
+                  {event.type === 'quiz_completed' && `✅ ${event.studentName} scored ${event.score}/${event.totalQuestions} on "${event.quizTitle}"`}
+                  {event.type === 'badge_unlocked' && `🏆 ${event.studentName} earned the ${event.badgeIcon} ${event.badgeName} Badge!`}
+                </Text>
+                <Text style={styles.activityTimeText}>
+                  {new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* 1v1 Async Duels Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.cardHeaderEmoji}>⚔️</Text>
+              <Text style={styles.cardTitle}>1v1 Async Duels</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.challengeTriggerBtn}
+              onPress={() => setChallengeModalVisible(true)}
+            >
+              <Text style={styles.challengeTriggerText}>Challenge Peer</Text>
+            </TouchableOpacity>
+          </View>
+
+          {activeDuels.length === 0 ? (
+            <Text style={styles.emptyActivityText}>No active duels. Challenge a classmate to test your speed & knowledge!</Text>
+          ) : (
+            activeDuels.slice(0, 3).map((duel) => {
+              const isChallenger = duel.challenger?._id === user?._id;
+              const opponent = isChallenger ? duel.challenged : duel.challenger;
+              const myScore = isChallenger ? duel.challengerScore : duel.challengedScore;
+              const opScore = isChallenger ? duel.challengedScore : duel.challengerScore;
+              const opponentCompleted = isChallenger ? duel.challengedCompleted : duel.challengerCompleted;
+
+              let duelStatusText = '';
+              let canPlay = false;
+
+              if (duel.status === 'pending') {
+                if (isChallenger) {
+                  duelStatusText = `Waiting for ${opponent?.name || 'opponent'}...`;
+                } else {
+                  duelStatusText = `${opponent?.name || 'Opponent'} challenged you!`;
+                  canPlay = true;
+                }
+              } else if (duel.status === 'completed') {
+                if (duel.winner) {
+                  duelStatusText = duel.winner._id === user?._id ? 'You Won! 🎉' : 'You Lost 😢';
+                } else {
+                  duelStatusText = "It's a tie! 🤝";
+                }
+              } else if (duel.status === 'expired') {
+                duelStatusText = 'Expired ⏱️';
+              }
+
+              return (
+                <View key={duel._id} style={styles.duelRow}>
+                  <View style={styles.duelInfo}>
+                    <Text style={styles.duelOpponent}>vs {opponent?.name || 'Classmate'}</Text>
+                    <Text style={styles.duelQuiz}>{duel.quiz?.title || 'Quiz'}</Text>
+                    <Text style={styles.duelStatus}>{duelStatusText}</Text>
+                  </View>
+
+                  <View style={styles.duelScoreAction}>
+                    <Text style={styles.duelScoreText}>
+                      {myScore !== undefined ? myScore : '?'} - {opponentCompleted ? opScore : '?'}
+                    </Text>
+                    {canPlay && (
+                      <TouchableOpacity
+                        style={styles.playDuelBtn}
+                        onPress={() => navigation.navigate('Quiz', { quizId: duel.quiz?._id, activeDuelId: duel._id })}
+                      >
+                        <Text style={styles.playDuelBtnText}>Play</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+
         {/* Live Quiz Battle card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -410,7 +563,7 @@ export default function StudentDashboard({ navigation }) {
               <Text style={styles.liveBadgeText}>{liveRooms} rooms live</Text>
             </View>
           </View>
-          
+
           <View style={styles.actionRow}>
             <TextInput
               style={styles.input}
@@ -435,7 +588,7 @@ export default function StudentDashboard({ navigation }) {
               <Text style={styles.cardTitle}>Enroll in class</Text>
             </View>
           </View>
-          
+
           <View style={styles.actionRow}>
             <TextInput
               style={styles.input}
@@ -445,8 +598,8 @@ export default function StudentDashboard({ navigation }) {
               value={enrollCode}
               onChangeText={setEnrollCode}
             />
-            <TouchableOpacity 
-              style={styles.enrollBtn} 
+            <TouchableOpacity
+              style={styles.enrollBtn}
               onPress={handleEnroll}
               disabled={enrollLoading}
             >
@@ -489,21 +642,21 @@ export default function StudentDashboard({ navigation }) {
 
                 {/* Progress Bar */}
                 <View style={styles.courseProgressBarBg}>
-                  <View 
+                  <View
                     style={[
-                      styles.courseProgressBarFill, 
-                      { 
-                        width: `${course.avgScore}%`, 
-                        backgroundColor: getProgressBarColor(course.avgScore) 
+                      styles.courseProgressBarFill,
+                      {
+                        width: `${course.avgScore}%`,
+                        backgroundColor: getProgressBarColor(course.avgScore)
                       }
-                    ]} 
+                    ]}
                   />
                 </View>
 
                 <View style={styles.courseBottomRow}>
                   <Text style={styles.courseQuizzesStatus}>{course.quizStatusText}</Text>
-                  <TouchableOpacity 
-                    style={styles.takeQuizBtn} 
+                  <TouchableOpacity
+                    style={styles.takeQuizBtn}
                     onPress={() => handleOpenQuizModal(course)}
                   >
                     <Text style={styles.takeQuizBtnText}>Take quiz ↗</Text>
@@ -534,11 +687,11 @@ export default function StudentDashboard({ navigation }) {
                 <View key={idx} style={styles.gapRow}>
                   <Text style={styles.gapLabel}>{item.topic}</Text>
                   <View style={styles.gapProgressBarBg}>
-                    <View 
+                    <View
                       style={[
-                        styles.gapProgressBarFill, 
+                        styles.gapProgressBarFill,
                         { width: `${item.accuracy}%`, backgroundColor: fillColor }
-                      ]} 
+                      ]}
                     />
                   </View>
                   <Text style={styles.gapValue}>{item.accuracy}%</Text>
@@ -560,8 +713,8 @@ export default function StudentDashboard({ navigation }) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitleText}>Course Quizzes</Text>
-              <TouchableOpacity 
-                style={styles.modalCloseIconBtn} 
+              <TouchableOpacity
+                style={styles.modalCloseIconBtn}
                 onPress={() => setQuizModalVisible(false)}
               >
                 <Text style={styles.modalCloseIcon}>✕</Text>
@@ -587,7 +740,7 @@ export default function StudentDashboard({ navigation }) {
                       <Text style={styles.modalQuizTitle}>{quiz.title}</Text>
                       <Text style={styles.modalQuizSub}>{quiz.questions.length} Adaptive Questions</Text>
                     </View>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.modalStartBtn}
                       onPress={() => handleStartQuiz(quiz._id)}
                     >
@@ -597,6 +750,96 @@ export default function StudentDashboard({ navigation }) {
                 ))}
               </ScrollView>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* 1v1 Challenge Modal */}
+      <Modal
+        visible={challengeModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setChallengeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitleText}>1v1 Duel Challenge</Text>
+              <TouchableOpacity
+                style={styles.modalCloseIconBtn}
+                onPress={() => setChallengeModalVisible(false)}
+              >
+                <Text style={styles.modalCloseIcon}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalCourseSubtitle}>Challenge a classmate to a quiz duel!</Text>
+
+            <TextInput
+              style={styles.modalTextInput}
+              placeholder="Classmate's Username"
+              placeholderTextColor="#71717A"
+              value={duelUsername}
+              onChangeText={setDuelUsername}
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.modalSelectQuizLabel}>Select Quiz to Duel On:</Text>
+
+            <ScrollView style={styles.modalScrollable}>
+              {courses.map((course) => (
+                <View key={course._id} style={styles.courseDuelSection}>
+                  <Text style={styles.courseDuelTitle}>{course.code} — {course.name}</Text>
+
+                  <TouchableOpacity
+                    style={styles.loadCourseQuizzesBtn}
+                    onPress={async () => {
+                      setModalLoading(true);
+                      try {
+                        const activeQuizzes = await api.getCourseQuizzes(course._id);
+                        setDuelCourseQuizzes(prev => ({ ...prev, [course._id]: activeQuizzes }));
+                      } catch (err) {
+                        Alert.alert('Error', 'Failed to retrieve quizzes.');
+                      } finally {
+                        setModalLoading(false);
+                      }
+                    }}
+                  >
+                    <Text style={styles.loadCourseQuizzesText}>Show Quizzes</Text>
+                  </TouchableOpacity>
+
+                  {duelCourseQuizzes[course._id]?.map((quiz) => (
+                    <TouchableOpacity
+                      key={quiz._id}
+                      style={[
+                        styles.duelQuizCard,
+                        selectedDuelQuizId === quiz._id && styles.selectedDuelQuizCard
+                      ]}
+                      onPress={() => setSelectedDuelQuizId(quiz._id)}
+                    >
+                      <Text style={styles.duelQuizTitle}>{quiz.title}</Text>
+                      <Text style={styles.duelQuizQuestions}>{quiz.questions.length} questions</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.modalStartBtn, (!duelUsername.trim() || !selectedDuelQuizId) && styles.disabledModalStartBtn]}
+              onPress={() => {
+                if (!duelUsername.trim() || !selectedDuelQuizId) return;
+                setChallengeModalVisible(false);
+                navigation.navigate('Quiz', {
+                  quizId: selectedDuelQuizId,
+                  duelChallenge: { challengedUsername: duelUsername.trim() }
+                });
+                setDuelUsername('');
+                setSelectedDuelQuizId(null);
+              }}
+              disabled={!duelUsername.trim() || !selectedDuelQuizId}
+            >
+              <Text style={styles.modalStartBtnText}>Start Challenge Quiz ↗</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1252,5 +1495,169 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
+  },
+  activityCard: {
+    backgroundColor: '#161618',
+    borderColor: '#262629',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  activityTitle: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  emptyActivityText: {
+    color: '#71717A',
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#262629',
+  },
+  activityItemText: {
+    color: '#E4E4E7',
+    fontSize: 12,
+    lineHeight: 16,
+    flex: 1,
+    paddingRight: 8,
+  },
+  activityTimeText: {
+    color: '#71717A',
+    fontSize: 10,
+  },
+  challengeTriggerBtn: {
+    backgroundColor: '#312E81',
+    borderColor: '#4338CA',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  challengeTriggerText: {
+    color: '#818CF8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  duelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#0C0C0E',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#262629',
+  },
+  duelInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  duelOpponent: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  duelQuiz: {
+    color: '#818CF8',
+    fontSize: 11,
+  },
+  duelStatus: {
+    color: '#71717A',
+    fontSize: 10.5,
+  },
+  duelScoreAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  duelScoreText: {
+    color: '#E4E4E7',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  playDuelBtn: {
+    backgroundColor: '#10B981',
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  playDuelBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  modalTextInput: {
+    backgroundColor: '#0C0C0E',
+    borderColor: '#262629',
+    borderWidth: 1,
+    borderRadius: 8,
+    color: '#FFFFFF',
+    paddingHorizontal: 12,
+    height: 40,
+    fontSize: 13.5,
+    marginBottom: 12,
+  },
+  modalSelectQuizLabel: {
+    color: '#E4E4E7',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  courseDuelSection: {
+    marginBottom: 12,
+  },
+  courseDuelTitle: {
+    color: '#A1A1AA',
+    fontSize: 11.5,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  loadCourseQuizzesBtn: {
+    paddingVertical: 6,
+    backgroundColor: '#27272A',
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  loadCourseQuizzesText: {
+    color: '#D4D4D8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  duelQuizCard: {
+    backgroundColor: '#0C0C0E',
+    borderColor: '#262629',
+    borderWidth: 1,
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 6,
+  },
+  selectedDuelQuizCard: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#1E1B4B',
+  },
+  duelQuizTitle: {
+    color: '#E4E4E7',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  duelQuizQuestions: {
+    color: '#71717A',
+    fontSize: 10.5,
+  },
+  disabledModalStartBtn: {
+    backgroundColor: '#1C1A2E',
   },
 });

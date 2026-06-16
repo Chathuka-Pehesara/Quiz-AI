@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Share, Alert, Platform } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import ViewShot from 'react-native-view-shot';
 import AntigravityPhysics from '../components/AntigravityPhysics';
 
 const { width } = Dimensions.get('window');
@@ -19,6 +20,7 @@ export default function ResultScreen({ route, navigation }) {
 
   const [activeBadgeIdx, setActiveBadgeIdx] = useState(-1);
   const [badgeModalVisible, setBadgeModalVisible] = useState(false);
+  const viewShotRef = useRef(null);
 
   // Reanimated values for badge popup
   const scale = useSharedValue(0.3);
@@ -59,6 +61,21 @@ export default function ResultScreen({ route, navigation }) {
     navigation.replace('StudentDashboard');
   };
 
+  const handleShare = async () => {
+    try {
+      if (!viewShotRef.current) return;
+      const uri = await viewShotRef.current.capture();
+      await Share.share({
+        url: Platform.OS === 'android' ? uri : undefined,
+        message: `I scored ${score}/${total} (${percentage}%) on Quiz AI Platform! Check out my score!`,
+        title: 'Quiz AI Platform Results'
+      });
+    } catch (err) {
+      console.error('Failed to capture or share:', err);
+      Alert.alert('Share Failed', 'Could not generate shareable card image.');
+    }
+  };
+
   // If student gets a perfect 100%, trigger the Antigravity Physics animation!
   if (percentage === 100) {
     return (
@@ -79,50 +96,60 @@ export default function ResultScreen({ route, navigation }) {
         <Text style={styles.headerTitle}>Quiz Results</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.trophyEmoji}>📝</Text>
-        <Text style={styles.scoreText}>{score} / {total}</Text>
-        <Text style={[
-          styles.percentage,
-          percentage >= 80 ? styles.highScore : percentage >= 50 ? styles.medScore : styles.lowScore
-        ]}>
-          {percentage}%
-        </Text>
-        
-        {/* Gamification summary row */}
-        <View style={styles.gamificationRow}>
-          <View style={styles.xpPill}>
-            <Text style={styles.xpPillText}>+{xpEarned} XP</Text>
+      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.9 }} style={styles.viewShotCard}>
+        <View style={styles.card}>
+          <Text style={styles.trophyEmoji}>📝</Text>
+          <Text style={styles.scoreText}>{score} / {total}</Text>
+          <Text style={[
+            styles.percentage,
+            percentage >= 80 ? styles.highScore : percentage >= 50 ? styles.medScore : styles.lowScore
+          ]}>
+            {percentage}%
+          </Text>
+          
+          {/* Gamification summary row */}
+          <View style={styles.gamificationRow}>
+            <View style={styles.xpPill}>
+              <Text style={styles.xpPillText}>+{xpEarned} XP</Text>
+            </View>
+            {streak > 0 && (
+              <View style={styles.streakPill}>
+                <Text style={styles.streakPillText}>🔥 {streak} Day Streak</Text>
+              </View>
+            )}
           </View>
-          {streak > 0 && (
-            <View style={styles.streakPill}>
-              <Text style={styles.streakPillText}>🔥 {streak} Day Streak</Text>
+
+          {streakProtected && (
+            <View style={styles.streakProtectedBox}>
+              <Text style={styles.streakProtectedText}>❄️ Streak Freeze Used to protect your streak!</Text>
+            </View>
+          )}
+
+          <Text style={styles.description}>
+            {percentage >= 80 ? 'Excellent work! You have strong grasp of this topic.' : 
+             percentage >= 50 ? 'Good effort! Review your weak topics to improve.' : 
+             'Keep practicing! Check your Knowledge Gap chart on the dashboard.'}
+          </Text>
+          
+          {percentage < 100 && (
+            <View style={styles.easterEggHintBox}>
+              <Text style={styles.easterEggHintText}>
+                🔒 Easter Egg: Score 100% to break gravity and unlock the physics playground!
+              </Text>
             </View>
           )}
         </View>
-
-        {streakProtected && (
-          <View style={styles.streakProtectedBox}>
-            <Text style={styles.streakProtectedText}>❄️ Streak Freeze Used to protect your streak!</Text>
-          </View>
-        )}
-
-        <Text style={styles.description}>
-          {percentage >= 80 ? 'Excellent work! You have strong grasp of this topic.' : 
-           percentage >= 50 ? 'Good effort! Review your weak topics to improve.' : 
-           'Keep practicing! Check your Knowledge Gap chart on the dashboard.'}
-        </Text>
-        
-        {percentage < 100 && (
-          <View style={styles.easterEggHintBox}>
-            <Text style={styles.easterEggHintText}>
-              🔒 Easter Egg: Score 100% to break gravity and unlock the physics playground!
-            </Text>
-          </View>
-        )}
-      </View>
+      </ViewShot>
 
       <View style={styles.actionContainer}>
+        <TouchableOpacity 
+          activeOpacity={0.8}
+          style={styles.shareBtn}
+          onPress={handleShare}
+        >
+          <Text style={styles.shareBtnText}>Share Results Card 📲</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity 
           activeOpacity={0.8}
           style={styles.homeBtn}
@@ -362,5 +389,23 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     fontSize: 14,
     fontWeight: '800',
+  },
+  viewShotCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  shareBtn: {
+    backgroundColor: '#10B981',
+    height: 48,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  shareBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

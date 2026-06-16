@@ -1,9 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Modal, FlatList, Alert } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay } from 'react-native-reanimated';
 import { getSocket, disconnectSocket } from '../services/socket';
 
 export default function BattleScreen({ route, navigation }) {
   const { roomCode, initialQuestion, initialIndex, totalQuestions, user } = route.params;
+
+  const goldHeight = useSharedValue(0);
+  const silverHeight = useSharedValue(0);
+  const bronzeHeight = useSharedValue(0);
+
+  const goldStyle = useAnimatedStyle(() => ({
+    height: goldHeight.value,
+  }));
+  const silverStyle = useAnimatedStyle(() => ({
+    height: silverHeight.value,
+  }));
+  const bronzeStyle = useAnimatedStyle(() => ({
+    height: bronzeHeight.value,
+  }));
 
   const [question, setQuestion] = useState(initialQuestion);
   const [qIndex, setQIndex] = useState(initialIndex);
@@ -20,6 +35,14 @@ export default function BattleScreen({ route, navigation }) {
   
   // Game End State
   const [battleEnded, setBattleEnded] = useState(false);
+
+  useEffect(() => {
+    if (battleEnded) {
+      silverHeight.value = withDelay(100, withSpring(120, { damping: 10 }));
+      goldHeight.value = withDelay(300, withSpring(150, { damping: 10 }));
+      bronzeHeight.value = withDelay(500, withSpring(90, { damping: 10 }));
+    }
+  }, [battleEnded]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -123,6 +146,8 @@ export default function BattleScreen({ route, navigation }) {
 
   if (battleEnded) {
     const winner = leaderboardData[0];
+    const remainingPlayers = leaderboardData.slice(3);
+
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -130,24 +155,61 @@ export default function BattleScreen({ route, navigation }) {
         </View>
         
         <View style={styles.card}>
-          <Text style={styles.winnerEmoji}>👑</Text>
-          <Text style={styles.winnerSub}>Quiz Champion</Text>
-          <Text style={styles.winnerName}>{winner ? winner.name : 'Unknown'}</Text>
-          <Text style={styles.winnerScore}>{winner ? winner.score : 0} Points</Text>
+          <Text style={styles.winnerSub}>Quiz Podium</Text>
 
-          {/* Final Standings Table */}
-          <Text style={styles.tableTitle}>Final Standings</Text>
-          <FlatList
-            data={leaderboardData}
-            keyExtractor={(item) => item.userId}
-            renderItem={({ item, index }) => (
-              <View style={styles.leaderboardItem}>
-                <Text style={styles.rankText}>#{index + 1}</Text>
-                <Text style={styles.playerText} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.scoreVal}>{item.score} pts</Text>
+          {/* 3D podium for Top 3 */}
+          <View style={styles.podiumContainer}>
+            {/* Silver (2nd) */}
+            {leaderboardData[1] && (
+              <View style={styles.podiumColWrapper}>
+                <Text style={styles.podiumName} numberOfLines={1}>{leaderboardData[1].name}</Text>
+                <Text style={styles.podiumPoints}>{leaderboardData[1].score} pts</Text>
+                <Animated.View style={[styles.podiumColumn, styles.silverColumn, silverStyle]}>
+                  <Text style={styles.podiumRank}>🥈</Text>
+                </Animated.View>
               </View>
             )}
-          />
+
+            {/* Gold (1st) */}
+            {leaderboardData[0] && (
+              <View style={styles.podiumColWrapper}>
+                <Text style={styles.podiumName} numberOfLines={1}>{leaderboardData[0].name}</Text>
+                <Text style={styles.podiumPoints}>{leaderboardData[0].score} pts</Text>
+                <Animated.View style={[styles.podiumColumn, styles.goldColumn, goldStyle]}>
+                  <Text style={styles.podiumRank}>👑</Text>
+                </Animated.View>
+              </View>
+            )}
+
+            {/* Bronze (3rd) */}
+            {leaderboardData[2] && (
+              <View style={styles.podiumColWrapper}>
+                <Text style={styles.podiumName} numberOfLines={1}>{leaderboardData[2].name}</Text>
+                <Text style={styles.podiumPoints}>{leaderboardData[2].score} pts</Text>
+                <Animated.View style={[styles.podiumColumn, styles.bronzeColumn, bronzeStyle]}>
+                  <Text style={styles.podiumRank}>🥉</Text>
+                </Animated.View>
+              </View>
+            )}
+          </View>
+
+          {/* Final Standings Table for remaining players */}
+          {remainingPlayers.length > 0 && (
+            <View style={{ flex: 1, marginTop: 10 }}>
+              <Text style={styles.tableTitle}>Other Participants</Text>
+              <FlatList
+                data={remainingPlayers}
+                keyExtractor={(item) => item.userId}
+                renderItem={({ item, index }) => (
+                  <View style={styles.leaderboardItem}>
+                    <Text style={styles.rankText}>#{index + 4}</Text>
+                    <Text style={styles.playerText} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.scoreVal}>{item.score} pts</Text>
+                  </View>
+                )}
+              />
+            </View>
+          )}
         </View>
 
         <TouchableOpacity 
@@ -543,5 +605,51 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  podiumContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 20,
+    height: 220,
+  },
+  podiumColWrapper: {
+    alignItems: 'center',
+    width: 80,
+  },
+  podiumName: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  podiumPoints: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  podiumColumn: {
+    width: '100%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  goldColumn: {
+    backgroundColor: '#F59E0B',
+  },
+  silverColumn: {
+    backgroundColor: '#94A3B8',
+  },
+  bronzeColumn: {
+    backgroundColor: '#B45309',
+  },
+  podiumRank: {
+    fontSize: 18,
+    fontWeight: '800',
   },
 });

@@ -184,5 +184,38 @@ export const api = {
     request('/admin/settings', { method: 'GET' }),
   
   updateAdminSettings: (data) => 
-    request('/admin/settings', { method: 'PUT', body: data })
+    request('/admin/settings', { method: 'PUT', body: data }),
+
+  // Duels
+  challengePeer: (challengedUsername, quizId, challengerScore) =>
+    request('/duels/challenge', { method: 'POST', body: { challengedUsername, quizId, challengerScore } }),
+
+  getActiveDuels: () =>
+    request('/duels/active', { method: 'GET' }),
+
+  completeDuel: (duelId, score) =>
+    request(`/duels/${duelId}/complete`, { method: 'POST', body: { score } }),
+
+  // Study Groups
+  createGroup: (name) =>
+    request('/groups/create', { method: 'POST', body: { name } }),
+
+  inviteToGroup: (groupId, username) =>
+    request(`/groups/${groupId}/invite`, { method: 'POST', body: { username } }),
+
+  getMyGroups: () =>
+    request('/groups/my-groups', { method: 'GET' }),
+
+  getGroupDashboard: (groupId) =>
+    request(`/groups/${groupId}/dashboard`, { method: 'GET' }),
+
+  // Question Discussions
+  getComments: (questionId) =>
+    request(`/discussions/${questionId}`, { method: 'GET' }),
+
+  postComment: (questionId, text, quizId) =>
+    request(`/discussions/${questionId}/comment`, { method: 'POST', body: { text, quizId } }),
+
+  toggleUpvoteComment: (questionId, commentId) =>
+    request(`/discussions/${questionId}/comment/${commentId}/upvote`, { method: 'POST' })
 };
