@@ -11,6 +11,47 @@ module.exports = (io) => {
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
+    // Join Course Activity Feed Room
+    socket.on('join_course_feed', ({ courseId }) => {
+      socket.join(courseId);
+      console.log(`Socket ${socket.id} joined course feed: ${courseId}`);
+    });
+
+    // Join Group Chat Room
+    socket.on('join_group_chat', ({ groupId }) => {
+      socket.join(groupId);
+      console.log(`Socket ${socket.id} joined group chat room: ${groupId}`);
+    });
+
+    // Send Group Message
+    socket.on('send_group_message', async ({ groupId, senderId, text }) => {
+      try {
+        const Message = require('../models/Message');
+        const Group = require('../models/Group');
+        const User = require('../models/User');
+
+        const user = await User.findById(senderId);
+        const group = await Group.findById(groupId);
+        if (!group || !user) return;
+
+        const message = new Message({
+          group: groupId,
+          sender: senderId,
+          text
+        });
+        await message.save();
+
+        io.to(groupId).emit('group_message_received', {
+          _id: message._id,
+          text: message.text,
+          sender: { _id: user._id, name: user.name },
+          createdAt: message.createdAt
+        });
+      } catch (e) {
+        console.error('Group chat socket error:', e);
+      }
+    });
+
     // Create a new battle room
     socket.on('create_room', async ({ userId, name, quizId }) => {
       try {
@@ -38,6 +79,15 @@ module.exports = (io) => {
         
         console.log(`Room created: ${roomCode} by host: ${name}`);
         socket.emit('room_created', { roomCode, roomData });
+
+        // Broadcast to Course Activity Feed
+        io.to(quiz.course.toString()).emit('activity_feed_event', {
+          type: 'battle_created',
+          studentName: name,
+          quizTitle: quiz.title,
+          roomCode,
+          createdAt: new Date()
+        });
       } catch (err) {
         console.error(err);
         socket.emit('error_message', 'Failed to create room: ' + err.message);

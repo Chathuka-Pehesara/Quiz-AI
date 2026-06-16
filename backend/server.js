@@ -10,6 +10,9 @@ const courseRoutes = require('./routes/courses');
 const quizRoutes = require('./routes/quizzes');
 const analyticsRoutes = require('./routes/analytics');
 const adminRoutes = require('./routes/admin');
+const duelRoutes = require('./routes/duels');
+const groupRoutes = require('./routes/groups');
+const discussionRoutes = require('./routes/discussions');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,6 +22,7 @@ const io = socketIo(server, {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
   }
 });
+app.set('io', io);
 
 // Connect Database
 connectDB();
@@ -38,6 +42,9 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/duels', duelRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/discussions', discussionRoutes);
 
 // Setup Socket.io battle logic
 require('./sockets/battle')(io);

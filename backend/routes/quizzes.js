@@ -3,6 +3,7 @@ const Quiz = require('../models/Quiz');
 const Course = require('../models/Course');
 const Score = require('../models/Score');
 const User = require('../models/User');
+const Group = require('../models/Group');
 const claude = require('../services/claudeService');
 const UserCourseDifficulty = require('../models/UserCourseDifficulty');
 const SpacedRepetition = require('../models/SpacedRepetition');
@@ -90,6 +91,18 @@ router.patch('/:id/publish', auth('professor'), async (req, res) => {
 
     quiz.isPublished = true;
     await quiz.save();
+
+    // Broadcast to course channel
+    const io = req.app.get('io');
+    if (io) {
+      io.to(quiz.course.toString()).emit('activity_feed_event', {
+        type: 'quiz_published',
+        quizId: quiz._id,
+        quizTitle: quiz.title,
+        createdAt: new Date()
+      });
+    }
+
     res.json({ message: 'Quiz published successfully', quiz });
   } catch (err) {
     console.error(err);
@@ -440,6 +453,51 @@ router.post('/:id/submit', auth('student'), async (req, res) => {
         record.nextReviewDate = reviewDate;
 
         await record.save();
+      }
+    }
+
+    // Update study groups where student is a member with this completed quiz
+    try {
+      await Group.updateMany(
+        { members: req.user.id },
+        {
+          $push: {
+            quizzes: {
+              student: req.user.id,
+              quizTitle: quiz.title,
+              score,
+              totalQuestions,
+              completedAt: new Date()
+            }
+          }
+        }
+      );
+    } catch (groupErr) {
+      console.error('Error updating study group quiz history:', groupErr);
+    }
+
+    // Broadcast to course channel via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.to(quiz.course.toString()).emit('activity_feed_event', {
+        type: 'quiz_completed',
+        studentName: student.name,
+        quizTitle: quiz.title,
+        score,
+        totalQuestions,
+        createdAt: new Date()
+      });
+
+      if (badgesUnlocked && badgesUnlocked.length > 0) {
+        badgesUnlocked.forEach(badge => {
+          io.to(quiz.course.toString()).emit('activity_feed_event', {
+            type: 'badge_unlocked',
+            studentName: student.name,
+            badgeName: badge.name,
+            badgeIcon: badge.icon,
+            createdAt: new Date()
+          });
+        });
       }
     }
 
