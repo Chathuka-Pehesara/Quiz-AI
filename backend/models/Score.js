@@ -29,8 +29,7 @@ const ScoreSchema = new mongoose.Schema({
       required: true
     },
     difficulty: {
-      type: String,
-      required: true
+      type: mongoose.Schema.Types.Mixed
     },
     answerGiven: {
       type: String

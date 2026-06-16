@@ -118,14 +118,17 @@ export const api = {
   getCourseQuizzes: (courseId) => 
     request(`/quizzes/course/${courseId}`, { method: 'GET' }),
   
-  submitQuizScore: (quizId, score, totalQuestions, answers) => 
-    request(`/quizzes/${quizId}/submit`, { method: 'POST', body: { score, totalQuestions, answers } }),
+  submitQuizScore: (quizId, score, totalQuestions, answers, timeTaken, hintsUsed) => 
+    request(`/quizzes/${quizId}/submit`, { method: 'POST', body: { score, totalQuestions, answers, timeTaken, hintsUsed } }),
   
   getAdaptiveNextQuestion: (quizId, answers) => 
     request(`/quizzes/${quizId}/adaptive-next`, { method: 'POST', body: { answers } }),
   
   explainWrongAnswer: (questionText, correctAnswer, studentAnswer) => 
     request('/quizzes/explain-wrong', { method: 'POST', body: { questionText, correctAnswer, studentAnswer } }),
+
+  generateHint: (questionText) =>
+    request('/quizzes/hint', { method: 'POST', body: { questionText } }),
 
   // Analytics
   getStudentKnowledgeGap: () => 
@@ -136,6 +139,12 @@ export const api = {
   
   generatePracticeQuiz: (topic, courseId) =>
     request('/quizzes/practice-weak', { method: 'POST', body: { topic, courseId } }),
+
+  getLeaderboard: (courseId, weekOffset = 0) =>
+    request(`/analytics/leaderboard?courseId=${courseId}&weekOffset=${weekOffset}`, { method: 'GET' }),
+
+  getStudentStudyPlan: () =>
+    request('/analytics/student/study-plan', { method: 'GET' }),
 
   getProfessorCourseAnalytics: (courseId) => 
     request(`/analytics/course/${courseId}`, { method: 'GET' }),

@@ -14,6 +14,12 @@ export default function QuizScreen({ route, navigation }) {
   const [responses, setResponses] = useState([]); // Array of { questionId, topic, difficulty, answerGiven, isCorrect }
   const [selectedOption, setSelectedOption] = useState('');
   const [shortAnswer, setShortAnswer] = useState('');
+  const [startTime, setStartTime] = useState(Date.now());
+
+  // Hints States
+  const [hintsUsed, setHintsUsed] = useState([]);
+  const [hintText, setHintText] = useState('');
+  const [hintLoading, setHintLoading] = useState(false);
 
   // Wrong Answer Explanation Modal State
   const [explanationModalVisible, setExplanationModalVisible] = useState(false);
@@ -22,6 +28,7 @@ export default function QuizScreen({ route, navigation }) {
   const [tempWrongAnswerInfo, setTempWrongAnswerInfo] = useState(null);
 
   useEffect(() => {
+    setStartTime(Date.now());
     fetchNextQuestion([]);
   }, []);
 
@@ -38,6 +45,8 @@ export default function QuizScreen({ route, navigation }) {
         setTotalTopics(data.totalTopics);
         setSelectedOption('');
         setShortAnswer('');
+        setHintText('');
+        setHintLoading(false);
       }
     } catch (err) {
       Alert.alert('Error', 'Failed to retrieve next adaptive question');
@@ -107,6 +116,25 @@ export default function QuizScreen({ route, navigation }) {
     }
   };
 
+  const handleGetHint = async () => {
+    if (hintText || hintLoading) return;
+    
+    setHintLoading(true);
+    try {
+      const data = await api.generateHint(currentQuestion.text);
+      setHintText(data.hint);
+      
+      if (currentQuestion._id && !hintsUsed.includes(currentQuestion._id.toString())) {
+        setHintsUsed(prev => [...prev, currentQuestion._id.toString()]);
+      }
+    } catch (err) {
+      console.error(err);
+      setHintText('Try breaking down the question and focusing on the core keywords.');
+    } finally {
+      setHintLoading(false);
+    }
+  };
+
   const handleCloseExplanation = () => {
     setExplanationModalVisible(false);
     setExplanationText('');
@@ -121,15 +149,31 @@ export default function QuizScreen({ route, navigation }) {
     try {
       const correctCount = finalResponses.filter(r => r.isCorrect).length;
       const scorePercentage = Math.round((correctCount / finalResponses.length) * 100);
+      const timeTaken = Math.round((Date.now() - startTime) / 1000);
 
-      await api.submitQuizScore(quizId, correctCount, finalResponses.length, finalResponses);
+      const result = await api.submitQuizScore(
+        quizId, 
+        correctCount, 
+        finalResponses.length, 
+        finalResponses,
+        timeTaken,
+        hintsUsed
+      );
       
-      // Navigate to Results page
+      // Navigate to Results page with gamification results
       navigation.replace('Result', {
         score: correctCount,
         total: finalResponses.length,
         percentage: scorePercentage,
-        quizId
+        quizId,
+        xpEarned: result.xpEarned,
+        totalXp: result.totalXp,
+        level: result.level,
+        levelUp: result.levelUp,
+        streak: result.streak,
+        freezeTokens: result.freezeTokens,
+        streakProtected: result.streakProtected,
+        badgesUnlocked: result.badgesUnlocked || []
       });
     } catch (err) {
       Alert.alert('Submission Error', 'Failed to store score history, but you finished! Routing to results.');
@@ -139,7 +183,9 @@ export default function QuizScreen({ route, navigation }) {
         score: correctCount,
         total: finalResponses.length,
         percentage: scorePercentage,
-        quizId
+        quizId,
+        xpEarned: 0,
+        badgesUnlocked: []
       });
     } finally {
       setSubmitting(false);
@@ -187,6 +233,26 @@ export default function QuizScreen({ route, navigation }) {
         </View>
         
         <Text style={styles.questionText}>{currentQuestion.text}</Text>
+
+        {/* Hint Nudge Trigger & Banner */}
+        <View style={styles.hintContainer}>
+          {hintLoading ? (
+            <ActivityIndicator size="small" color="#F59E0B" style={styles.hintLoader} />
+          ) : hintText ? (
+            <View style={styles.hintBanner}>
+              <Text style={styles.hintTextLabel}>💡 Hint:</Text>
+              <Text style={styles.hintBodyText}>{hintText}</Text>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              activeOpacity={0.8}
+              style={styles.hintBtn}
+              onPress={handleGetHint}
+            >
+              <Text style={styles.hintBtnText}>💡 Need a hint?</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Inputs */}
         {currentQuestion.type === 'mcq' && (
@@ -523,5 +589,47 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  hintContainer: {
+    marginVertical: 10,
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  hintLoader: {
+    paddingVertical: 6,
+    alignSelf: 'center',
+  },
+  hintBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#4B5563',
+  },
+  hintBtnText: {
+    color: '#F59E0B',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  hintBanner: {
+    backgroundColor: '#78350F' + '20',
+    borderColor: '#D97706',
+    borderWidth: 1.5,
+    borderRadius: 10,
+    padding: 12,
+    width: '100%',
+    gap: 4,
+  },
+  hintTextLabel: {
+    color: '#F59E0B',
+    fontSize: 12.5,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  hintBodyText: {
+    color: '#FDE68A',
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

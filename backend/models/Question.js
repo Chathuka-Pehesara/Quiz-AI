@@ -20,9 +20,12 @@ const QuestionSchema = new mongoose.Schema({
     trim: true
   },
   difficulty: {
+    type: mongoose.Schema.Types.Mixed,
+    default: 3
+  },
+  explanation: {
     type: String,
-    enum: ['easy', 'medium', 'hard'],
-    default: 'medium'
+    trim: true
   },
   topic: {
     type: String,

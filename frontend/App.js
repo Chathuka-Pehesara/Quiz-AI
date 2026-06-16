@@ -18,6 +18,8 @@ import QuizScreen from './src/screens/QuizScreen';
 import ResultScreen from './src/screens/ResultScreen';
 import BattleLobbyScreen from './src/screens/BattleLobbyScreen';
 import BattleScreen from './src/screens/BattleScreen';
+import LeaderboardScreen from './src/screens/LeaderboardScreen';
+import StudyPlannerScreen from './src/screens/StudyPlannerScreen';
 
 const Stack = createStackNavigator();
 
@@ -94,6 +96,10 @@ function AppNavigation() {
           {/* Battle Rooms */}
           <Stack.Screen name="BattleLobby" component={BattleLobbyScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
           <Stack.Screen name="Battle" component={BattleScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
+
+          {/* Gamification & AI Planner */}
+          <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
+          <Stack.Screen name="StudyPlanner" component={StudyPlannerScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
         </Stack.Navigator>
       </NavigationContainer>
     </View>

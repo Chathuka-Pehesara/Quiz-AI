@@ -13,8 +13,10 @@ import {
   Platform
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { api } from '../services/api';
 import { clearAuth } from '../utils/storage';
+import { scheduleSmartReminders } from '../utils/notifications';
 
 export default function StudentDashboard({ navigation }) {
   const isFocused = useIsFocused();
@@ -49,6 +51,10 @@ export default function StudentDashboard({ navigation }) {
 
       const metrics = await api.getStudentDashboard();
       setDashboardData(metrics);
+
+      scheduleSmartReminders(profile.activeTimes, metrics.streak, profile.lastActiveDate).catch(e =>
+        console.warn('Failed to schedule notifications:', e)
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -63,6 +69,10 @@ export default function StudentDashboard({ navigation }) {
       setUser(profile);
       const metrics = await api.getStudentDashboard();
       setDashboardData(metrics);
+
+      scheduleSmartReminders(profile.activeTimes, metrics.streak, profile.lastActiveDate).catch(e =>
+        console.warn('Failed to schedule notifications:', e)
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -174,6 +184,47 @@ export default function StudentDashboard({ navigation }) {
     return { bg: '#FEE2E2', text: '#991B1B' };
   };
 
+  // Extract real metrics from dashboardData
+  const quizzesCount = dashboardData?.quizzesCount ?? 0;
+  const avgScore = dashboardData?.avgScore ?? 0;
+  const badgesCount = dashboardData?.badgesCount ?? 0;
+  const streak = dashboardData?.streak ?? 0;
+  const freezeTokens = dashboardData?.freezeTokens ?? 0;
+  const level = dashboardData?.level ?? 'Bronze';
+  const xp = dashboardData?.xp ?? 0;
+  const dueTopics = dashboardData?.dueTopics ?? [];
+  const liveRooms = dashboardData?.liveRoomsCount ?? 0;
+  const aiInsightText = dashboardData?.aiInsight?.text ?? 'Take a quiz to receive AI-driven insights!';
+  const knowledgeGap = dashboardData?.knowledgeGap ?? [];
+  const courses = dashboardData?.courses ?? [];
+
+  // Calculate XP thresholds for progress bar
+  let nextLevelXp = 500;
+  let prevLevelXp = 0;
+  if (level === 'Silver') {
+    nextLevelXp = 1500;
+    prevLevelXp = 500;
+  } else if (level === 'Gold') {
+    nextLevelXp = 4000;
+    prevLevelXp = 1500;
+  } else if (level === 'Genius') {
+    nextLevelXp = 10000;
+    prevLevelXp = 4000;
+  }
+
+  const progressPct = nextLevelXp === prevLevelXp ? 100 : Math.min(100, Math.max(0, ((xp - prevLevelXp) / (nextLevelXp - prevLevelXp)) * 100));
+  const animatedXpWidth = useSharedValue(0);
+
+  useEffect(() => {
+    if (dashboardData) {
+      animatedXpWidth.value = withSpring(progressPct, { damping: 15, stiffness: 80 });
+    }
+  }, [xp, progressPct, dashboardData]);
+
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    width: `${animatedXpWidth.value}%`
+  }));
+
   if (loading && !dashboardData) {
     return (
       <View style={styles.center}>
@@ -181,16 +232,6 @@ export default function StudentDashboard({ navigation }) {
       </View>
     );
   }
-
-  // Fallback default values matching mockup
-  const quizzesCount = dashboardData?.quizzesCount ?? 12;
-  const avgScore = dashboardData?.avgScore ?? 84;
-  const badgesCount = dashboardData?.badgesCount ?? 5;
-  const streak = dashboardData?.streak ?? 7;
-  const liveRooms = dashboardData?.liveRoomsCount ?? 2;
-  const aiInsightText = dashboardData?.aiInsight?.text ?? 'You struggle most with Database Normalization. Try a focused quiz today.';
-  const knowledgeGap = dashboardData?.knowledgeGap ?? [];
-  const courses = dashboardData?.courses ?? [];
 
   return (
     <View style={styles.outerContainer}>
@@ -219,13 +260,50 @@ export default function StudentDashboard({ navigation }) {
             
             {/* Streak Badge */}
             <View style={styles.streakBadge}>
-              <Text style={styles.streakEmoji}>⏱️</Text>
+              <Text style={styles.streakEmoji}>🔥</Text>
               <Text style={styles.streakText}>{streak} day streak</Text>
             </View>
           </View>
           
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Level & XP Progress Card */}
+        <View style={styles.xpCard}>
+          <View style={styles.xpLevelRow}>
+            <View style={styles.levelBadgeContainer}>
+              <Text style={styles.levelBadgeText}>✨ {level}</Text>
+            </View>
+            <Text style={styles.xpPointsText}>{xp} / {nextLevelXp} XP</Text>
+          </View>
+          <View style={styles.xpBarBg}>
+            <Animated.View style={[styles.xpBarFill, animatedProgressStyle]} />
+          </View>
+          <Text style={styles.freezeTokensText}>
+            ❄️ {freezeTokens} streak freeze token{freezeTokens !== 1 ? 's' : ''} available
+          </Text>
+        </View>
+
+        {/* Action Navigation Hub */}
+        <View style={styles.actionHubRow}>
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            style={styles.hubBtn}
+            onPress={() => navigation.navigate('Leaderboard')}
+          >
+            <Text style={styles.hubBtnEmoji}>🏆</Text>
+            <Text style={styles.hubBtnText}>Leaderboards</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            style={styles.hubBtn}
+            onPress={() => navigation.navigate('StudyPlanner')}
+          >
+            <Text style={styles.hubBtnEmoji}>📅</Text>
+            <Text style={styles.hubBtnText}>AI Study Plan</Text>
           </TouchableOpacity>
         </View>
 
@@ -248,6 +326,42 @@ export default function StudentDashboard({ navigation }) {
             <Text style={styles.statValueIndigo}>{badgesCount}</Text>
           </View>
         </View>
+
+        {/* Spaced Repetition Due Review Card */}
+        {dueTopics.length > 0 && (
+          <View style={styles.dueTopicsCard}>
+            <View style={styles.dueHeaderRow}>
+              <Text style={styles.dueIcon}>🔁</Text>
+              <Text style={styles.dueTitle}>Due for Review</Text>
+            </View>
+            <Text style={styles.dueSubtitle}>Spaced Repetition Scheduler indicates you should review these topics:</Text>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dueScroll}>
+              {dueTopics.map((item, idx) => (
+                <View key={idx} style={styles.dueItemCard}>
+                  <Text style={styles.dueItemTopic} numberOfLines={1}>{item.topic}</Text>
+                  <TouchableOpacity 
+                    style={styles.dueReviewBtn}
+                    onPress={async () => {
+                      try {
+                        const firstCourseId = courses[0]?._id;
+                        const practiceQuiz = await api.generatePracticeQuiz(item.topic, firstCourseId);
+                        Alert.alert('AI Generated Review Quiz', `Ready to review "${item.topic}"?`, [
+                          { text: 'Start Now ↗', onPress: () => navigation.navigate('Quiz', { quizId: practiceQuiz._id }) },
+                          { text: 'Cancel', style: 'cancel' }
+                        ]);
+                      } catch (err) {
+                        Alert.alert('Failed to launch review quiz', err.message);
+                      }
+                    }}
+                  >
+                    <Text style={styles.dueReviewBtnText}>Review ↗</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* AI Insight light-themed card */}
         <View style={styles.insightCard}>
@@ -272,7 +386,7 @@ export default function StudentDashboard({ navigation }) {
           <TouchableOpacity 
             style={styles.practiceBtn} 
             onPress={handlePracticeWeakTopic}
-            disabled={practiceLoading}
+            disabled={practiceLoading || !dashboardData?.aiInsight?.weakTopic}
           >
             {practiceLoading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
@@ -1007,5 +1121,136 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11.5,
     fontWeight: '700',
+  },
+  xpCard: {
+    backgroundColor: '#161618',
+    borderColor: '#262629',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  xpLevelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  levelBadgeContainer: {
+    backgroundColor: '#3B82F6' + '20',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  levelBadgeText: {
+    color: '#3B82F6',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  xpPointsText: {
+    color: '#E4E4E7',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  xpBarBg: {
+    height: 8,
+    backgroundColor: '#27272A',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  xpBarFill: {
+    height: '100%',
+    backgroundColor: '#3B82F6',
+    borderRadius: 4,
+  },
+  freezeTokensText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  actionHubRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  hubBtn: {
+    flex: 1,
+    backgroundColor: '#161618',
+    borderColor: '#262629',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 6,
+  },
+  hubBtnEmoji: {
+    fontSize: 20,
+  },
+  hubBtnText: {
+    color: '#E4E4E7',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  dueTopicsCard: {
+    backgroundColor: '#161618',
+    borderColor: '#EF4444' + '40',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  dueHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  dueIcon: {
+    fontSize: 14,
+  },
+  dueTitle: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dueSubtitle: {
+    color: '#71717A',
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 12,
+  },
+  dueScroll: {
+    gap: 10,
+    paddingRight: 12,
+  },
+  dueItemCard: {
+    backgroundColor: '#0C0C0E',
+    borderColor: '#262629',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    width: 140,
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  dueItemTopic: {
+    color: '#E4E4E7',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  dueReviewBtn: {
+    backgroundColor: '#EF4444',
+    borderRadius: 6,
+    paddingVertical: 4,
+    alignItems: 'center',
+  },
+  dueReviewBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
 });

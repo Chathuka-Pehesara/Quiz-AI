@@ -3,6 +3,8 @@ const Score = require('../models/Score');
 const Quiz = require('../models/Quiz');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const SpacedRepetition = require('../models/SpacedRepetition');
+const claudeService = require('../services/claudeService');
 const auth = require('../middleware/auth');
 const roomsStore = require('../sockets/roomsStore');
 const router = express.Router();
@@ -13,13 +15,16 @@ router.get('/student/dashboard', auth('student'), async (req, res) => {
     const scores = await Score.find({ student: req.user.id }).sort({ completedAt: 1 });
     const userProfile = await User.findById(req.user.id).populate('courses');
 
+    if (!userProfile) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     // Live rooms count from Socket.io roomsStore
     const activeRoomsCount = roomsStore ? roomsStore.size : 0;
     const finalRoomsCount = activeRoomsCount > 0 ? activeRoomsCount : 2; // Default 2 to match mockup if 0
 
     // 1. Quizzes count
-    // Fallback to mockup value (12) if 0
-    const quizzesCount = scores.length > 0 ? scores.length : 12;
+    const quizzesCount = scores.length;
 
     // 2. Average score
     let avgScore = 0;
@@ -27,46 +32,18 @@ router.get('/student/dashboard', auth('student'), async (req, res) => {
       const totalPct = scores.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions) * 100, 0);
       avgScore = Math.round(totalPct / scores.length);
     } else {
-      avgScore = 84; // Default mockup average
+      avgScore = 0; // default to 0 if no attempts
     }
 
-    // 3. Streak calculation
-    let streak = 0;
-    if (scores.length > 0) {
-      const dates = [...new Set(scores.map(s => s.completedAt.toISOString().split('T')[0]))];
-      const todayStr = new Date().toISOString().split('T')[0];
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+    // 3. Streak and level metrics from User Profile
+    const streak = userProfile.streak || 0;
+    const freezeTokens = userProfile.freezeTokens || 0;
+    const level = userProfile.level || 'Bronze';
+    const xp = userProfile.xp || 0;
+    const badges = userProfile.badges || [];
+    const badgesCount = badges.length;
 
-      let checkDate = dates.includes(todayStr) ? new Date() : (dates.includes(yesterdayStr) ? yesterday : null);
-
-      if (checkDate) {
-        streak = 1;
-        while (true) {
-          checkDate.setDate(checkDate.getDate() - 1);
-          const prevStr = checkDate.toISOString().split('T')[0];
-          if (dates.includes(prevStr)) {
-            streak += 1;
-          } else {
-            break;
-          }
-        }
-      }
-    }
-    if (streak === 0) streak = 7; // Default mockup streak
-
-    // 4. Badges count
-    const badges = [];
-    if (scores.length > 0) badges.push({ name: 'Quiz Starter', icon: '🚀' });
-    if (scores.some(s => (s.score / s.totalQuestions) === 1)) badges.push({ name: 'Perfect Score', icon: '🏆' });
-    if (streak >= 5) badges.push({ name: 'Streak Master', icon: '🔥' });
-    if (userProfile && userProfile.courses && userProfile.courses.length >= 2) {
-      badges.push({ name: 'Course Explorer', icon: '🧭' });
-    }
-    const badgesCount = badges.length > 0 ? badges.length : 5; // Default mockup badges count
-
-    // 5. Knowledge gap calculation
+    // 4. Knowledge gap calculation
     const topicStats = {};
     scores.forEach(score => {
       score.answers.forEach(ans => {
@@ -90,27 +67,25 @@ router.get('/student/dashboard', auth('student'), async (req, res) => {
     });
 
     if (knowledgeGap.length === 0) {
-      knowledgeGap = [
-        { topic: 'SQL Joins', correct: 9, total: 10, accuracy: 90 },
-        { topic: 'Normalization', correct: 2, total: 5, accuracy: 42 },
-        { topic: 'Transactions', correct: 7, total: 10, accuracy: 68 },
-        { topic: 'Indexing', correct: 6, total: 11, accuracy: 55 }
-      ];
+      // Return empty or fallback if no data
+      knowledgeGap = [];
     }
 
-    // 6. AI Insight based on weakest topic
+    // 5. AI Insight based on weakest topic
     const sortedGap = [...knowledgeGap].sort((a, b) => a.accuracy - b.accuracy);
-    const weakestTopic = sortedGap.length > 0 ? sortedGap[0].topic : 'Database Normalization';
-    const aiInsight = {
+    const weakestTopic = sortedGap.length > 0 ? sortedGap[0].topic : null;
+    const aiInsight = weakestTopic ? {
       weakTopic: weakestTopic,
       text: `You struggle most with ${weakestTopic}. Try a focused quiz today.`
+    } : {
+      weakTopic: 'General Database Concepts',
+      text: 'You have not completed any quizzes yet. Take a quiz to analyze your knowledge gaps!'
     };
 
-    // 7. Enrolled courses stats
+    // 6. Enrolled courses stats
     const coursesData = [];
     if (userProfile && userProfile.courses) {
       for (const course of userProfile.courses) {
-        // Find published quizzes
         const publishedQuizzes = await Quiz.find({ course: course._id, isPublished: true });
         const quizIds = publishedQuizzes.map(q => q._id);
         const courseScores = scores.filter(s => quizIds.some(id => id.toString() === s.quiz.toString()));
@@ -120,10 +95,7 @@ router.get('/student/dashboard', auth('student'), async (req, res) => {
           const totalPct = courseScores.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions) * 100, 0);
           courseAvg = Math.round(totalPct / courseScores.length);
         } else {
-          // Fallback mockup defaults
-          if (course.code === 'CS301') courseAvg = 84;
-          else if (course.code === 'CS201') courseAvg = 61;
-          else if (course.code === 'CS401') courseAvg = 92;
+          courseAvg = 0;
         }
 
         const completedQuizIds = new Set(courseScores.map(s => s.quiz.toString()));
@@ -132,15 +104,7 @@ router.get('/student/dashboard', auth('student'), async (req, res) => {
 
         let quizStatusText = 'All caught up!';
         if (quizzesAvailableCount > 0) {
-          if (course.code === 'CS201' && quizzesAvailableCount === 1) {
-            quizStatusText = '1 quiz due tomorrow';
-          } else {
-            quizStatusText = `${quizzesAvailableCount} quiz${quizzesAvailableCount > 1 ? 'zes' : ''} available`;
-          }
-        } else {
-          // Fallback mockup defaults
-          if (course.code === 'CS301') quizStatusText = '3 quizzes available';
-          else if (course.code === 'CS201') quizStatusText = '1 quiz due tomorrow';
+          quizStatusText = `${quizzesAvailableCount} quiz${quizzesAvailableCount > 1 ? 'zes' : ''} available`;
         }
 
         coursesData.push({
@@ -154,19 +118,128 @@ router.get('/student/dashboard', auth('student'), async (req, res) => {
       }
     }
 
+    // Query spaced repetition records due for review
+    const dueRepetitions = await SpacedRepetition.find({
+      student: req.user.id,
+      nextReviewDate: { $lte: new Date() }
+    });
+    
+    const dueTopics = dueRepetitions.map(record => ({
+      topic: record.topic,
+      nextReviewDate: record.nextReviewDate,
+      interval: record.interval,
+      easeFactor: record.easeFactor
+    }));
+
     res.json({
       quizzesCount,
       avgScore,
       badgesCount,
       streak,
+      freezeTokens,
+      level,
+      xp,
+      badges,
       liveRoomsCount: finalRoomsCount,
       aiInsight,
       knowledgeGap,
-      courses: coursesData
+      courses: coursesData,
+      dueTopics
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get course weekly leaderboard (top 10 students by XP earned this week)
+router.get('/leaderboard', auth(), async (req, res) => {
+  const { courseId, weekOffset } = req.query;
+  if (!courseId) {
+    return res.status(400).json({ message: 'courseId is required' });
+  }
+
+  try {
+    const now = new Date();
+    const offset = parseInt(weekOffset, 10) || 0;
+    
+    // Start of week (Monday)
+    const monday = new Date(now);
+    const day = monday.getDay();
+    const diff = monday.getDate() - day + (day === 0 ? -6 : 1) - (offset * 7);
+    monday.setDate(diff);
+    monday.setHours(0, 0, 0, 0);
+
+    // End of week (Sunday)
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    // Find all quizzes in this course
+    const quizzes = await Quiz.find({ course: courseId });
+    const quizIds = quizzes.map(q => q._id);
+
+    // Find all scores submitted for these quizzes in this week range
+    const scores = await Score.find({
+      quiz: { $in: quizIds },
+      completedAt: { $gte: monday, $lte: sunday }
+    }).populate('student', 'name email level xp');
+
+    const studentXpMap = {};
+    
+    scores.forEach(scoreDoc => {
+      if (!scoreDoc.student) return;
+      const studentId = scoreDoc.student._id.toString();
+      
+      let xpEarned = 0;
+      if (scoreDoc.answers && scoreDoc.answers.length > 0) {
+        scoreDoc.answers.forEach(ans => {
+          let diff = 3;
+          if (typeof ans.difficulty === 'number') diff = ans.difficulty;
+          else if (ans.difficulty === 'easy') diff = 1;
+          else if (ans.difficulty === 'hard') diff = 5;
+          
+          if (ans.isCorrect) xpEarned += diff * 15;
+          else xpEarned += diff * 3;
+        });
+      } else {
+        xpEarned = scoreDoc.score * 50;
+      }
+
+      if (!studentXpMap[studentId]) {
+        studentXpMap[studentId] = {
+          id: studentId,
+          name: scoreDoc.student.name,
+          level: scoreDoc.student.level || 'Bronze',
+          totalXp: scoreDoc.student.xp || 0,
+          weeklyXp: 0
+        };
+      }
+      studentXpMap[studentId].weeklyXp += xpEarned;
+    });
+
+    const leaderboard = Object.values(studentXpMap)
+      .sort((a, b) => b.weeklyXp - a.weeklyXp)
+      .slice(0, 10);
+
+    if (leaderboard.length === 0) {
+      const course = await Course.findById(courseId).populate('students', 'name level xp');
+      if (course && course.students) {
+        const dummyLeaderboard = course.students.map(s => ({
+          id: s._id.toString(),
+          name: s.name,
+          level: s.level || 'Bronze',
+          totalXp: s.xp || 0,
+          weeklyXp: 0
+        })).slice(0, 10);
+        return res.json(dummyLeaderboard);
+      }
+    }
+
+    res.json(leaderboard);
+  } catch (err) {
+    console.error('Leaderboard error:', err);
+    res.status(500).json({ message: 'Server error: ' + err.message });
   }
 });
 
@@ -295,6 +368,61 @@ router.get('/course/:courseId', auth('professor'), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get student's AI-generated 7-day study plan based on their 3 weakest topics
+router.get('/student/study-plan', auth('student'), async (req, res) => {
+  try {
+    const scores = await Score.find({ student: req.user.id });
+    const topicStats = {};
+    
+    scores.forEach(score => {
+      score.answers.forEach(ans => {
+        const { topic, isCorrect } = ans;
+        if (!topic || !topic.trim()) return;
+        const normTopic = topic.trim();
+        if (!topicStats[normTopic]) {
+          topicStats[normTopic] = { correct: 0, total: 0 };
+        }
+        topicStats[normTopic].total += 1;
+        if (isCorrect) {
+          topicStats[normTopic].correct += 1;
+        }
+      });
+    });
+
+    const topicsPerformance = Object.keys(topicStats).map(topic => {
+      const { correct, total } = topicStats[topic];
+      const accuracy = total > 0 ? (correct / total) * 100 : 0;
+      return { topic, accuracy };
+    });
+
+    // Sort ascending by accuracy (lowest first)
+    topicsPerformance.sort((a, b) => a.accuracy - b.accuracy);
+
+    // Pick top 3 weakest topics
+    let weakestTopics = topicsPerformance.slice(0, 3).map(t => t.topic);
+
+    // Fallbacks if student doesn't have enough topics recorded
+    const fallbacks = ['Database Normalization', 'SQL Joins', 'Indexing'];
+    while (weakestTopics.length < 3) {
+      const nextFallback = fallbacks.find(f => !weakestTopics.includes(f));
+      if (nextFallback) {
+        weakestTopics.push(nextFallback);
+      } else {
+        const extra = fallbacks[weakestTopics.length] || 'General Review';
+        weakestTopics.push(extra);
+      }
+    }
+
+    console.log(`Generating study plan using Claude service for weakest topics: ${weakestTopics.join(', ')}`);
+    const studyPlan = await claudeService.generateStudyPlan(weakestTopics);
+    
+    res.json(studyPlan);
+  } catch (err) {
+    console.error('Error generating study plan:', err);
+    res.status(500).json({ message: 'Server error: ' + err.message });
   }
 });
 

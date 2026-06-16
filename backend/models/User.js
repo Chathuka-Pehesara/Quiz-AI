@@ -34,7 +34,42 @@ const UserSchema = new mongoose.Schema({
   flagReason: {
     type: String,
     default: ''
-  }
+  },
+  xp: {
+    type: Number,
+    default: 0
+  },
+  level: {
+    type: String,
+    default: 'Bronze'
+  },
+  streak: {
+    type: Number,
+    default: 0
+  },
+  freezeTokens: {
+    type: Number,
+    default: 0
+  },
+  lastActiveDate: {
+    type: Date
+  },
+  badges: [{
+    name: String,
+    icon: String,
+    description: String,
+    awardedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  activeTimes: [{
+    hour: Number,
+    count: {
+      type: Number,
+      default: 0
+    }
+  }]
 }, {
   timestamps: true
 });

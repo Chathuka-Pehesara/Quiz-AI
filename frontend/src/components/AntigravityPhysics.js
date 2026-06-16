@@ -19,8 +19,83 @@ const SCREEN_HEIGHT = height - 60;
 const GRAVITY = 750; // pixels per second^2
 const RESTITUTION = 0.72; // bounciness factor
 const DAMPING = 0.985; // air resistance friction
+function ConfettiParticle({ index, isExploded }) {
+  const cx = useSharedValue(Math.random() * SCREEN_WIDTH);
+  const cy = useSharedValue(-20 - Math.random() * 200);
+  const cvx = useSharedValue(0);
+  const cvy = useSharedValue(0);
+  const crot = useSharedValue(Math.random() * 360);
+  const cvrot = useSharedValue(0);
 
-export default function AntigravityPhysics({ onBackHome }) {
+  const colors = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#A855F7', '#06B6D4'];
+  const color = colors[index % colors.length];
+  const size = 6 + (index % 3) * 3;
+  const borderRadius = index % 2 === 0 ? size / 2 : 2;
+
+  useEffect(() => {
+    if (isExploded) {
+      cx.value = SCREEN_WIDTH / 2;
+      cy.value = SCREEN_HEIGHT / 2 - 100;
+      cvx.value = (Math.random() - 0.5) * 800;
+      cvy.value = -Math.random() * 600 - 150;
+      crot.value = Math.random() * 360;
+      cvrot.value = (Math.random() - 0.5) * 20;
+    } else {
+      cx.value = Math.random() * SCREEN_WIDTH;
+      cy.value = -50 - Math.random() * 100;
+      cvx.value = 0;
+      cvy.value = 0;
+      crot.value = 0;
+      cvrot.value = 0;
+    }
+  }, [isExploded]);
+
+  useFrameCallback((frameInfo) => {
+    if (!isExploded) return;
+    const dt = frameInfo.timeSincePreviousFrame / 1000;
+    if (dt <= 0 || dt > 0.1) return;
+
+    cvy.value += GRAVITY * dt;
+    cvx.value *= DAMPING;
+    cvy.value *= DAMPING;
+
+    cx.value += cvx.value * dt;
+    cy.value += cvy.value * dt;
+    crot.value += cvrot.value * dt;
+
+    if (cx.value < 0) {
+      cx.value = 0;
+      cvx.value = -cvx.value * 0.5;
+    } else if (cx.value > SCREEN_WIDTH - size) {
+      cx.value = SCREEN_WIDTH - size;
+      cvx.value = -cvx.value * 0.5;
+    }
+
+    if (cy.value > SCREEN_HEIGHT - size) {
+      cy.value = SCREEN_HEIGHT - size;
+      cvy.value = -cvy.value * 0.5;
+      cvx.value *= 0.9;
+    }
+  });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    position: 'absolute',
+    width: size,
+    height: size,
+    backgroundColor: color,
+    borderRadius: borderRadius,
+    transform: [
+      { translateX: cx.value },
+      { translateY: cy.value },
+      { rotate: `${crot.value}deg` }
+    ],
+    zIndex: 5
+  }));
+
+  return <Animated.View style={animatedStyle} />;
+}
+
+export default function AntigravityPhysics({ onBackHome, xpEarned = 250, streak = 7, badges = [] }) {
   const [showButton, setShowButton] = useState(false);
   const [isExploded, setIsExploded] = useState(false);
 
@@ -198,6 +273,11 @@ export default function AntigravityPhysics({ onBackHome }) {
 
   return (
     <GestureHandlerRootView style={styles.container}>
+      {/* Confetti Particles */}
+      {Array.from({ length: 30 }).map((_, i) => (
+        <ConfettiParticle key={i} index={i} isExploded={isExploded} />
+      ))}
+
       {/* 0. Logo Card */}
       <GestureDetector gesture={makeDragGesture(0)}>
         <Animated.View style={[animatedStyles[0], styles.logo]}>
@@ -220,6 +300,15 @@ export default function AntigravityPhysics({ onBackHome }) {
           <Text style={styles.cardHeader}>Quiz Results</Text>
           <Text style={styles.cardScore}>100%</Text>
           <Text style={styles.cardCongrats}>Unbelievable! You got all questions right!</Text>
+          <View style={styles.floatingStatsRow}>
+            <Text style={styles.floatingXp}>+{xpEarned} XP</Text>
+            {streak > 0 && <Text style={styles.floatingStreak}>🔥 {streak}d Streak</Text>}
+          </View>
+          {badges && badges.length > 0 && (
+            <Text style={styles.floatingBadgeUnlocked}>
+              Unlocked: {badges[0].icon} {badges[0].name}
+            </Text>
+          )}
         </Animated.View>
       </GestureDetector>
 
@@ -414,5 +503,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  floatingStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floatingXp: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  floatingStreak: {
+    color: '#EA580C',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  floatingBadgeUnlocked: {
+    color: '#F59E0B',
+    fontSize: 11.5,
+    fontWeight: '800',
+    marginTop: 8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
   },
 });
