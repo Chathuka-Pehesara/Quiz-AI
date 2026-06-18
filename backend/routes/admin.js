@@ -102,14 +102,16 @@ router.get('/overview', auth('admin'), async (req, res) => {
     }
 
     // Suspicious Activity (Cheat flags)
-    const flaggedStudent = await User.findOne({ role: 'student', isFlagged: true });
-    if (flaggedStudent) {
-      recentActivity.push({
-        type: 'cheat',
-        title: 'Suspicious activity',
-        detail: `AI flagged rapid answers — ${flaggedStudent.name}`,
-        time: '1 hr ago',
-        userId: flaggedStudent._id
+    const flaggedStudents = await User.find({ role: 'student', isFlagged: true }).sort({ updatedAt: -1 }).limit(5);
+    if (flaggedStudents.length > 0) {
+      flaggedStudents.forEach((student) => {
+        recentActivity.push({
+          type: 'cheat',
+          title: 'Suspicious activity',
+          detail: `${student.flagReason || 'Rapid answers'} — ${student.name}`,
+          time: 'Just now',
+          userId: student._id
+        });
       });
     } else {
       recentActivity.push({

@@ -354,9 +354,64 @@ function getSimulatedStudyPlan(weakestTopics) {
   };
 }
 
+/**
+ * Analyze timing and app focus patterns using Claude to check for suspected cheating.
+ */
+async function analyzeCheatPattern(timings, answerSequence, appStateChanges) {
+  if (isKeyMissing) {
+    return {
+      cheatingSuspected: false,
+      reason: "Local programmatic checks applied: Claude API key missing."
+    };
+  }
+
+  try {
+    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        temperature: 0.2,
+        system: `You are an academic integrity AI auditor. Analyze the quiz submission metrics. Return ONLY a valid JSON object matching this structure:
+        {
+          "cheatingSuspected": boolean,
+          "reason": "Clear explanation of findings and patterns"
+        }
+        Do not include any other text.`,
+        messages: [
+          {
+            role: 'user',
+            content: `Analyze the student's telemetry for this quiz session:
+            Timings per question (seconds): ${JSON.stringify(timings)}
+            Answer sequence (given answers): ${JSON.stringify(answerSequence)}
+            App state changes (number of times student exited/switched app): ${appStateChanges}`
+          }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const rawText = data.content[0].text.trim();
+    const cleanText = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
+    return JSON.parse(cleanText);
+  } catch (err) {
+    console.error('Failed to analyze cheat pattern with Claude, returning fallback:', err);
+    return {
+      cheatingSuspected: false,
+      reason: "Could not retrieve Claude AI analysis. Network/API issue."
+    };
+  }
+}
+
 module.exports = {
   generateQuestions,
   explainWrongAnswer,
   generateStudyPlan,
-  generateHint
+  generateHint,
+  analyzeCheatPattern
 };

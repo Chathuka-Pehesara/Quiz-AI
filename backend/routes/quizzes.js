@@ -7,12 +7,55 @@ const Group = require('../models/Group');
 const claude = require('../services/claudeService');
 const UserCourseDifficulty = require('../models/UserCourseDifficulty');
 const SpacedRepetition = require('../models/SpacedRepetition');
+const UserQuizMapping = require('../models/UserQuizMapping');
 const auth = require('../middleware/auth');
 const router = express.Router();
 
+// Helper to shuffle topics and MCQ choices order per student/quiz
+async function getOrCreateUserQuizMapping(studentId, quiz) {
+  let mapping = await UserQuizMapping.findOne({ student: studentId, quiz: quiz._id });
+  if (!mapping) {
+    const topicMap = {};
+    quiz.questions.forEach(q => {
+      if (!q.topic) return;
+      const t = q.topic.trim();
+      if (!topicMap[t]) {
+        topicMap[t] = [];
+      }
+      topicMap[t].push(q);
+    });
+    const originalTopics = Object.keys(topicMap);
+    
+    // Shuffle topics/question order
+    const shuffledTopics = [...originalTopics].sort(() => Math.random() - 0.5);
+
+    // Shuffle options for MCQ questions
+    const shuffledQuestions = [];
+    quiz.questions.forEach(q => {
+      if (q.type === 'mcq' && q.options && q.options.length > 0) {
+        const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+        shuffledQuestions.push({
+          questionId: q._id.toString(),
+          shuffledOptions
+        });
+      }
+    });
+
+    mapping = new UserQuizMapping({
+      student: studentId,
+      quiz: quiz._id,
+      shuffledTopics,
+      shuffledQuestions
+    });
+    await mapping.save();
+  }
+  return mapping;
+}
+
+
 // Generate quiz questions (Professor only)
 router.post('/generate', auth('professor'), async (req, res) => {
-  const { title, courseId, textInput, numQuestions } = req.body;
+  const { title, courseId, textInput, numQuestions, timeLimit } = req.body;
   try {
     const course = await Course.findById(courseId);
     if (!course) {
@@ -27,7 +70,8 @@ router.post('/generate', auth('professor'), async (req, res) => {
       course: courseId,
       questions,
       createdBy: req.user.id,
-      isPublished: false
+      isPublished: false,
+      timeLimit: timeLimit || 10
     });
 
     await quiz.save();
@@ -46,6 +90,57 @@ router.get('/:id', auth(), async (req, res) => {
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz not found' });
     }
+
+    // If student, apply shuffling mapping!
+    if (req.user && req.user.role === 'student') {
+      const mapping = await getOrCreateUserQuizMapping(req.user.id, quiz);
+      
+      // Reorder questions list and shuffle options
+      // Group questions by topic first
+      const topicMap = {};
+      quiz.questions.forEach(q => {
+        if (!q.topic) return;
+        const t = q.topic.trim();
+        if (!topicMap[t]) topicMap[t] = [];
+        topicMap[t].push(q);
+      });
+
+      // Map and reorder questions based on shuffledTopics
+      const quizObj = quiz.toObject ? quiz.toObject() : JSON.parse(JSON.stringify(quiz));
+      const reorderedQuestions = [];
+      
+      mapping.shuffledTopics.forEach(topic => {
+        const qsForTopic = topicMap[topic] || [];
+        qsForTopic.forEach(q => {
+          const qObj = q.toObject ? q.toObject() : JSON.parse(JSON.stringify(q));
+          if (qObj.type === 'mcq') {
+            const mappedQ = mapping.shuffledQuestions.find(sq => sq.questionId === qObj._id.toString());
+            if (mappedQ && mappedQ.shuffledOptions && mappedQ.shuffledOptions.length > 0) {
+              qObj.options = mappedQ.shuffledOptions;
+            }
+          }
+          reorderedQuestions.push(qObj);
+        });
+      });
+
+      // If there are any questions with no topic or missing, add them too
+      quiz.questions.forEach(q => {
+        const qObj = q.toObject ? q.toObject() : JSON.parse(JSON.stringify(q));
+        if (!reorderedQuestions.some(rq => rq._id.toString() === qObj._id.toString())) {
+          if (qObj.type === 'mcq') {
+            const mappedQ = mapping.shuffledQuestions.find(sq => sq.questionId === qObj._id.toString());
+            if (mappedQ && mappedQ.shuffledOptions && mappedQ.shuffledOptions.length > 0) {
+              qObj.options = mappedQ.shuffledOptions;
+            }
+          }
+          reorderedQuestions.push(qObj);
+        }
+      });
+
+      quizObj.questions = reorderedQuestions;
+      return res.json(quizObj);
+    }
+
     res.json(quiz);
   } catch (err) {
     console.error(err);
@@ -55,7 +150,7 @@ router.get('/:id', auth(), async (req, res) => {
 
 // Update quiz questions/details (Professor review/edit)
 router.put('/:id', auth('professor'), async (req, res) => {
-  const { title, questions } = req.body;
+  const { title, questions, timeLimit } = req.body;
   try {
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) {
@@ -68,6 +163,7 @@ router.put('/:id', auth('professor'), async (req, res) => {
 
     if (title) quiz.title = title;
     if (questions) quiz.questions = questions;
+    if (timeLimit !== undefined) quiz.timeLimit = timeLimit;
 
     await quiz.save();
     res.json(quiz);
@@ -591,7 +687,8 @@ router.post('/:id/adaptive-next', auth('student'), async (req, res) => {
       topicMap[t].push(q);
     });
 
-    const topicsList = Object.keys(topicMap);
+    const mapping = await getOrCreateUserQuizMapping(req.user.id, quiz);
+    const topicsList = mapping.shuffledTopics;
 
     // If quiz is empty, return error
     if (topicsList.length === 0) {
@@ -609,6 +706,10 @@ router.post('/:id/adaptive-next', auth('student'), async (req, res) => {
     // Current topic we need to serve
     const nextTopic = topicsList[answeredCount];
     const topicQuestions = topicMap[nextTopic];
+
+    if (!topicQuestions || topicQuestions.length === 0) {
+      return res.status(400).json({ message: `No questions found for topic ${nextTopic}` });
+    }
 
     // Find active difficulty tier for this topic
     let targetDifficulty = 3;
@@ -653,9 +754,19 @@ router.post('/:id/adaptive-next', auth('student'), async (req, res) => {
       }
     });
 
+    let responseQuestion = chosenQuestion;
+    if (chosenQuestion && chosenQuestion.type === 'mcq') {
+      const questionObj = chosenQuestion.toObject ? chosenQuestion.toObject() : JSON.parse(JSON.stringify(chosenQuestion));
+      const mappedQ = mapping.shuffledQuestions.find(sq => sq.questionId === questionObj._id.toString());
+      if (mappedQ && mappedQ.shuffledOptions && mappedQ.shuffledOptions.length > 0) {
+        questionObj.options = mappedQ.shuffledOptions;
+      }
+      responseQuestion = questionObj;
+    }
+
     res.json({
       completed: false,
-      question: chosenQuestion,
+      question: responseQuestion,
       topicIndex: answeredCount,
       totalTopics: topicsList.length
     });
@@ -717,6 +828,73 @@ router.post('/practice-weak', auth('student'), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error generating practice quiz: ' + err.message });
+  }
+});
+
+// AI anti-cheat engine endpoint
+router.post('/:id/anti-cheat', auth('student'), async (req, res) => {
+  const { timings, answerSequence, appStateChanges } = req.body;
+  try {
+    const student = await User.findById(req.user.id);
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    if (!timings || !Array.isArray(timings) || timings.length === 0) {
+      return res.status(400).json({ message: 'Invalid or missing timings telemetry.' });
+    }
+
+    // 1. Programmatic Checks
+    let flagged = false;
+    let reasons = [];
+
+    // Rule A: average time per question is under 4 seconds
+    const totalTime = timings.reduce((a, b) => a + b, 0);
+    const avgTime = totalTime / timings.length;
+    if (avgTime < 4) {
+      flagged = true;
+      reasons.push(`Average time per question was ${avgTime.toFixed(1)}s (under 4s threshold)`);
+    }
+
+    // Rule B: all answers were submitted within 10% of each other in timing
+    if (timings.length > 1) {
+      const within10Percent = timings.every(t => Math.abs(t - avgTime) / avgTime <= 0.10);
+      if (within10Percent) {
+        flagged = true;
+        reasons.push(`Sub-10% timing variation detected (highly uniform response times: ${JSON.stringify(timings)}s)`);
+      }
+    }
+
+    // Rule C: student switched away from the app more than 3 times
+    if (appStateChanges > 3) {
+      flagged = true;
+      reasons.push(`Student exited/switched focus away from the app ${appStateChanges} times (threshold: 3)`);
+    }
+
+    // 2. Claude Integrity Analysis (as requested: "calls Claude to analyse the pattern")
+    const claudeResult = await claude.analyzeCheatPattern(timings, answerSequence, appStateChanges);
+    if (claudeResult && claudeResult.cheatingSuspected) {
+      flagged = true;
+      reasons.push(`Claude integrity analysis: ${claudeResult.reason}`);
+    }
+
+    // 3. Save flag with reason to MongoDB User document
+    if (flagged) {
+      student.isFlagged = true;
+      student.flagReason = `AI detected cheating: ${reasons.join(' | ')}`;
+      await student.save();
+      
+      console.log(`[ANTI-CHEAT] Student ${student.name} flagged. Reason: ${student.flagReason}`);
+    }
+
+    res.json({
+      flagged,
+      reason: student.flagReason || '',
+      claudeAnalysis: claudeResult ? claudeResult.reason : 'Claude API disabled'
+    });
+  } catch (err) {
+    console.error('Anti-cheat endpoint error:', err);
+    res.status(500).json({ message: 'Server error analyzing quiz patterns' });
   }
 });
 

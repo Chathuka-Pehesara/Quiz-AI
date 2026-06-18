@@ -21,6 +21,10 @@ const QuizSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  timeLimit: {
+    type: Number,
+    default: 10
   }
 }, {
   timestamps: true

@@ -17,6 +17,11 @@ module.exports = (roles = []) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'quiz_ai_platform_jwt_secret_key_123!');
       req.user = decoded;
 
+      // Admin role bypass: Admins can access everything
+      if (req.user.role === 'admin') {
+        return next();
+      }
+
       if (roles.length && !roles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied: Insufficient permissions' });
       }
