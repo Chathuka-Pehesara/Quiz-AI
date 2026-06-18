@@ -167,6 +167,31 @@ export default function ProfessorDashboard({ navigation }) {
     }
   };
 
+  const handleDeleteQuiz = async (quizId) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to permanently delete this quiz?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.deleteQuiz(quizId);
+              Alert.alert('Success', 'Quiz deleted successfully');
+              if (selectedCourse) {
+                handleSelectCourse(selectedCourse);
+              }
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Failed to delete quiz');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleLogout = async () => {
     await clearAuth();
     navigation.replace('Login');
@@ -317,11 +342,11 @@ export default function ProfessorDashboard({ navigation }) {
           </View>
 
           {/* 3. Real-Time Battle Host panel */}
-          {courseQuizzes.length > 0 && (
+          {courseQuizzes.filter(q => q.isPublished).length > 0 && (
             <View style={styles.panel}>
               <Text style={styles.panelTitle}>Launch Live Quiz Battle Room</Text>
               <Text style={styles.panelSub}>Start a multiplayer battle room. Students join in real-time using a 6-digit code and answer simultaneously.</Text>
-              {courseQuizzes.map((quiz) => (
+              {courseQuizzes.filter(q => q.isPublished).map((quiz) => (
                 <View key={quiz._id} style={styles.lobbyQuizCard}>
                   <Text style={styles.lobbyQuizTitle}>{quiz.title}</Text>
                   <TouchableOpacity
@@ -335,13 +360,66 @@ export default function ProfessorDashboard({ navigation }) {
             </View>
           )}
 
+          {/* 3.5 Quiz & Exam Management */}
+          <View style={styles.panel}>
+            <Text style={styles.panelTitle}>Quizzes & Exam Management</Text>
+            <Text style={styles.panelSub}>Manage draft and published quizzes, review telemetry, or delete quiz resources.</Text>
+            {courseQuizzes.length === 0 ? (
+              <Text style={styles.emptyText}>No quizzes created for this class yet. Generate one above!</Text>
+            ) : (
+              courseQuizzes.map((quiz) => (
+                <View key={quiz._id} style={styles.quizMgmtCard}>
+                  <View style={styles.quizMgmtHeader}>
+                    <Text style={styles.quizMgmtTitle} numberOfLines={1}>{quiz.title}</Text>
+                    <View style={[styles.statusBadge, quiz.isPublished ? styles.statusPublished : styles.statusDraft]}>
+                      <Text style={[styles.statusBadgeText, quiz.isPublished ? { color: '#10B981' } : { color: '#F59E0B' }]}>
+                        {quiz.isPublished ? 'Live' : 'Draft'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.quizMgmtControls}>
+                    {!quiz.isPublished && (
+                      <TouchableOpacity 
+                        style={[styles.controlBtn, { backgroundColor: '#10B981' }]} 
+                        onPress={() => handlePublishQuiz(quiz._id)}
+                      >
+                        <Text style={styles.controlBtnText}>Publish</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity 
+                      style={[styles.controlBtn, { backgroundColor: '#3B82F6' }]} 
+                      onPress={() => navigation.navigate('CreateQuiz', { quizId: quiz._id })}
+                    >
+                      <Text style={styles.controlBtnText}>Edit</Text>
+                    </TouchableOpacity>
+                    {quiz.isPublished && (
+                      <TouchableOpacity 
+                        style={[styles.controlBtn, { backgroundColor: '#8B5CF6' }]} 
+                        onPress={() => navigation.navigate('QuizAnalytics', { quizId: quiz._id })}
+                      >
+                        <Text style={styles.controlBtnText}>Stats 📊</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity 
+                      style={[styles.controlBtn, { backgroundColor: '#EF4444' }]} 
+                      onPress={() => handleDeleteQuiz(quiz._id)}
+                    >
+                      <Text style={styles.controlBtnText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
           {/* 4. Classroom Analytics Panel */}
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>Performance Analytics Dashboard</Text>
             {analyticsLoading ? (
               <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 20 }} />
-            ) : !analytics || analytics.totalSubmissions === 0 ? (
-              <Text style={styles.emptyText}>No quiz submission grades have been submitted for this class yet.</Text>
+            ) : !analytics ? (
+              <Text style={styles.emptyText}>Failed to load class analytics.</Text>
             ) : (
               <View>
                 <View style={styles.statRow}>
@@ -351,33 +429,69 @@ export default function ProfessorDashboard({ navigation }) {
                   </View>
                   <View style={styles.statBox}>
                     <Text style={styles.statVal}>{analytics.totalSubmissions}</Text>
-                    <Text style={styles.statLbl}>Graded Quizzes</Text>
+                    <Text style={styles.statLbl}>Graded Attempts</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statVal}>{analytics.totalStudentsEnrolled || 0}</Text>
+                    <Text style={styles.statLbl}>Enrolled</Text>
                   </View>
                 </View>
 
+                {/* Question Heatmap */}
+                <Text style={styles.analyticsSectionTitle}>Per-Question Correctness Heatmap</Text>
+                {analytics.questionHeatmap && analytics.questionHeatmap.length > 0 ? (
+                  analytics.questionHeatmap.map((item, idx) => {
+                    let color = '#EF4444'; // Red
+                    if (item.correctRate >= 80) color = '#10B981'; // Green
+                    else if (item.correctRate >= 50) color = '#F59E0B'; // Orange
+                    
+                    return (
+                      <View key={idx} style={[styles.heatmapRow, { borderLeftColor: color }]}>
+                        <View style={{ flex: 1, paddingRight: 8 }}>
+                          <Text style={styles.heatmapText} numberOfLines={2}>{item.text}</Text>
+                          <Text style={styles.heatmapQuizSub}>{item.quizTitle} &bull; Difficulty {item.difficulty}</Text>
+                        </View>
+                        <View style={[styles.heatmapBadge, { backgroundColor: color + '15', borderColor: color }]}>
+                          <Text style={[styles.heatmapBadgeText, { color }]}>{item.correctRate}% Avg</Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.emptyText}>No questions answered in this class yet.</Text>
+                )}
+
                 {/* Student Performance list */}
                 <Text style={styles.analyticsSectionTitle}>Student Rankings</Text>
-                {analytics.studentWise.map((student, idx) => (
-                  <View key={idx} style={styles.tableRow}>
-                    <Text style={styles.tableColName} numberOfLines={1}>{student.name}</Text>
-                    <Text style={styles.tableColDetail}>{student.totalQuizzesTaken} taken</Text>
-                    <Text style={[styles.tableColAcc, { color: student.averagePercentage >= 80 ? '#10B981' : student.averagePercentage >= 50 ? '#F59E0B' : '#EF4444' }]}>
-                      {student.averagePercentage}% Avg
-                    </Text>
-                  </View>
-                ))}
+                {analytics.studentWise && analytics.studentWise.length > 0 ? (
+                  analytics.studentWise.map((student, idx) => (
+                    <View key={idx} style={styles.tableRow}>
+                      <Text style={styles.tableColName} numberOfLines={1}>{student.name}</Text>
+                      <Text style={styles.tableColDetail}>{student.totalQuizzesTaken} taken</Text>
+                      <Text style={[styles.tableColAcc, { color: student.averagePercentage >= 80 ? '#10B981' : student.averagePercentage >= 50 ? '#F59E0B' : '#EF4444' }]}>
+                        {student.averagePercentage}% Avg
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>No student attempts recorded.</Text>
+                )}
 
                 {/* Topic Analytics list */}
                 <Text style={styles.analyticsSectionTitle}>Topic Performance Breakdown</Text>
-                {analytics.topicWise.map((topic, idx) => (
-                  <View key={idx} style={styles.tableRow}>
-                    <Text style={styles.tableColName}>{topic.topic}</Text>
-                    <Text style={styles.tableColDetail}>{topic.totalAnswers} questions</Text>
-                    <Text style={[styles.tableColAcc, { color: topic.correctRate >= 80 ? '#10B981' : topic.correctRate >= 50 ? '#F59E0B' : '#EF4444' }]}>
-                      {topic.correctRate}% Correct
-                    </Text>
-                  </View>
-                ))}
+                {analytics.topicWise && analytics.topicWise.length > 0 ? (
+                  analytics.topicWise.map((topic, idx) => (
+                    <View key={idx} style={styles.tableRow}>
+                      <Text style={styles.tableColName}>{topic.topic}</Text>
+                      <Text style={styles.tableColDetail}>{topic.totalAnswers} questions</Text>
+                      <Text style={[styles.tableColAcc, { color: topic.correctRate >= 80 ? '#10B981' : topic.correctRate >= 50 ? '#F59E0B' : '#EF4444' }]}>
+                        {topic.correctRate}% Correct
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>No topic scores recorded.</Text>
+                )}
               </View>
             )}
           </View>
@@ -614,5 +728,91 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
     textAlign: 'right',
+  },
+  heatmapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 6,
+    borderLeftWidth: 4,
+  },
+  heatmapText: {
+    color: '#E2E8F0',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  heatmapQuizSub: {
+    color: '#64748B',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  heatmapBadge: {
+    borderWidth: 1,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  heatmapBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  quizMgmtCard: {
+    backgroundColor: '#0F172A',
+    borderColor: '#1F2937',
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  quizMgmtHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  quizMgmtTitle: {
+    color: '#E2E8F0',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+    paddingRight: 8,
+  },
+  statusBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  statusPublished: {
+    backgroundColor: '#10B981' + '15',
+    borderColor: '#10B981',
+  },
+  statusDraft: {
+    backgroundColor: '#F59E0B' + '15',
+    borderColor: '#F59E0B',
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  quizMgmtControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  controlBtn: {
+    flex: 1,
+    height: 30,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  controlBtnText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

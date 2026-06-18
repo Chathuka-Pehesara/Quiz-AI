@@ -13,6 +13,7 @@ import {
   Dimensions
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { VictoryLine, VictoryBar, VictoryChart, VictoryTheme, VictoryAxis, VictoryGroup, VictoryArea } from 'victory-native';
 import { api } from '../services/api';
 import { clearAuth, getRoleFromToken } from '../utils/storage';
 import { useTheme } from '../context/ThemeContext';
@@ -21,7 +22,9 @@ export default function AdminDashboard({ navigation }) {
   const { colors, theme, toggleTheme } = useTheme();
   const isFocused = useIsFocused();
   const [isLargeScreen, setIsLargeScreen] = useState(Dimensions.get('window').width > 768);
-  const [activeTab, setActiveTab] = useState('overview'); // overview, quizzes, users, courses, ai, settings
+  const [activeTab, setActiveTab] = useState('overview'); // overview, flags, quizzes, users, courses, ai, settings
+  const [unreviewedCount, setUnreviewedCount] = useState(0);
+  const [cheatFlags, setCheatFlags] = useState([]);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -81,9 +84,20 @@ export default function AdminDashboard({ navigation }) {
 
   const loadData = async () => {
     try {
+      // Fetch unreviewed flags count for the sidebar badge
+      try {
+        const countRes = await api.getAdminCheatFlagsUnreadCount();
+        setUnreviewedCount(countRes.count);
+      } catch (err) {
+        console.warn('Failed to load unread flags count:', err);
+      }
+
       if (activeTab === 'overview') {
-        const data = await api.getAdminOverview();
+        const data = await api.getAdminAnalytics();
         setOverviewData(data);
+      } else if (activeTab === 'flags') {
+        const flags = await api.getAdminCheatFlags();
+        setCheatFlags(flags);
       } else if (activeTab === 'quizzes') {
         const quizList = await api.getAdminQuizzes();
         setQuizzes(quizList);
@@ -274,6 +288,7 @@ export default function AdminDashboard({ navigation }) {
   const renderSidebar = () => {
     const tabs = [
       { id: 'overview', icon: '📊', label: 'Overview' },
+      { id: 'flags', icon: '🚨', label: 'Flags' },
       { id: 'quizzes', icon: '📝', label: 'Quizzes' },
       { id: 'users', icon: '👥', label: 'Users' },
       { id: 'courses', icon: '🎓', label: 'Courses' },
@@ -295,8 +310,17 @@ export default function AdminDashboard({ navigation }) {
                 setActiveTab(tab.id);
               }}
             >
-              <Text style={styles.sidebarIcon}>{tab.icon}</Text>
-              {isLargeScreen && <Text style={[styles.sidebarLabel, { color: activeTab === tab.id ? colors.text : colors.textMuted }]}>{tab.label}</Text>}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Text style={styles.sidebarIcon}>{tab.icon}</Text>
+                  {isLargeScreen && <Text style={[styles.sidebarLabel, { color: activeTab === tab.id ? colors.text : colors.textMuted }]}>{tab.label}</Text>}
+                </View>
+                {tab.id === 'flags' && unreviewedCount > 0 && (
+                  <View style={styles.unreviewedBadgePill}>
+                    <Text style={styles.unreviewedBadgeText}>{unreviewedCount}</Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -317,147 +341,251 @@ export default function AdminDashboard({ navigation }) {
 
   const renderOverview = () => {
     if (!overviewData) return null;
-    
+
+    // Daily quiz activity chart data format
+    const chartData = (overviewData.dailyActivity || []).map((item) => ({
+      x: item.date,
+      y: item.count
+    }));
+
+    // Top active courses chart data format
+    const courseChartData = (overviewData.topCourses || []).map((item) => ({
+      x: item.code,
+      y: item.attempts
+    }));
+
+    // Find maximum count for charts y-domain
+    const maxCourseAttempts = Math.max(...(overviewData.topCourses || []).map(i => i.attempts), 5);
+
     return (
-      <View style={styles.panel}>
-        <View style={styles.panelHeader}>
-          <Text style={[styles.panelTitleText, { color: colors.text }]}>Admin overview</Text>
-          <View style={[styles.healthBadge, { backgroundColor: colors.green + '20' }]}>
-            <Text style={[styles.healthDot, { color: colors.green }]}>●</Text>
-            <Text style={[styles.healthText, { color: colors.green }]}>System healthy</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        <View style={styles.panel}>
+          <View style={styles.panelHeader}>
+            <Text style={[styles.panelTitleText, { color: colors.text }]}>University Analytics Overview</Text>
+            <View style={[styles.healthBadge, { backgroundColor: colors.green + '20' }]}>
+              <Text style={[styles.healthDot, { color: colors.green }]}>●</Text>
+              <Text style={[styles.healthText, { color: colors.green }]}>System Active</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text 
-              numberOfLines={1} 
-              adjustsFontSizeToFit 
-              minimumFontScale={0.7} 
-              style={[styles.statCardLabel, { color: colors.textMuted }]}
-            >
-              Total students
-            </Text>
-            <Text style={[styles.statCardIcon, { color: colors.text }]}>👥</Text>
-            <Text style={[styles.statCardVal, { color: '#C084FC' }]}>{overviewData.totalStudents}</Text>
+          {/* Stats Summary cards */}
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>Active Students</Text>
+              <Text style={[styles.statCardVal, { color: '#C084FC' }]}>{overviewData.totalActiveStudents}</Text>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>Quizzes (This Week)</Text>
+              <Text style={[styles.statCardVal, { color: '#60A5FA' }]}>{overviewData.totalQuizzesTakenThisWeek}</Text>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>University Avg Score</Text>
+              <Text style={[styles.statCardVal, { color: '#34D399' }]}>{overviewData.averageScoreAllCourses}%</Text>
+            </View>
           </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text 
-              numberOfLines={1} 
-              adjustsFontSizeToFit 
-              minimumFontScale={0.7} 
-              style={[styles.statCardLabel, { color: colors.textMuted }]}
-            >
-              Total quizzes
-            </Text>
-            <Text style={[styles.statCardIcon, { color: colors.text }]}>📝</Text>
-            <Text style={[styles.statCardVal, { color: colors.text }]}>{overviewData.totalQuizzes}</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text 
-              numberOfLines={1} 
-              adjustsFontSizeToFit 
-              minimumFontScale={0.7} 
-              style={[styles.statCardLabel, { color: colors.textMuted }]}
-            >
-              Active courses
-            </Text>
-            <Text style={[styles.statCardIcon, { color: colors.text }]}>🎓</Text>
-            <Text style={[styles.statCardVal, { color: '#34D399' }]}>{overviewData.activeCourses}</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text 
-              numberOfLines={1} 
-              adjustsFontSizeToFit 
-              minimumFontScale={0.7} 
-              style={[styles.statCardLabel, { color: colors.textMuted }]}
-            >
-              Live battles now
-            </Text>
-            <Text style={[styles.statCardIcon, { color: colors.text }]}>⚡</Text>
-            <Text style={[styles.statCardVal, { color: '#FB923C' }]}>{overviewData.liveBattlesNow}</Text>
-          </View>
-        </View>
 
-        {/* Recent Activity */}
-        <Text style={[styles.sectionTitleText, { color: colors.text }]}>Recent activity</Text>
-        <View style={styles.activityFeed}>
-          {overviewData.recentActivity.map((activity, idx) => {
-            let icon = '📝';
-            let iconBg = '#312E81';
-            let iconColor = '#818CF8';
-            if (activity.type === 'enroll') {
-              icon = '👥';
-              iconBg = '#064E3B';
-              iconColor = '#10B981';
-            } else if (activity.type === 'battle') {
-              icon = '⚡';
-              iconBg = '#7C2D12';
-              iconColor = '#EA580C';
-            } else if (activity.type === 'cheat') {
-              icon = '⚠️';
-              iconBg = '#78350F';
-              iconColor = '#F59E0B';
-            }
-
-            return (
-              <View key={idx} style={[styles.activityItem, { flexDirection: isLargeScreen ? 'row' : 'column', alignItems: isLargeScreen ? 'center' : 'stretch', gap: isLargeScreen ? 0 : 10, backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <View style={[styles.activityIconCircle, { backgroundColor: iconBg }]}>
-                    <Text style={[styles.activityIcon, { color: iconColor }]}>{icon}</Text>
-                  </View>
-                  <View style={styles.activityContent}>
-                    <Text style={[styles.activityTitle, { color: colors.text }]}>{activity.title}</Text>
-                    <Text style={[styles.activityDetail, { color: colors.textMuted }]}>{activity.detail}</Text>
-                  </View>
-                </View>
-                <View style={[
-                  styles.activityRight, 
-                  { 
-                    flexDirection: isLargeScreen ? 'column' : 'row', 
-                    justifyContent: isLargeScreen ? 'center' : 'space-between', 
-                    alignItems: isLargeScreen ? 'flex-end' : 'center', 
-                    width: isLargeScreen ? 'auto' : '100%', 
-                    borderTopWidth: isLargeScreen ? 0 : 1, 
-                    borderTopColor: colors.border, 
-                    paddingTop: isLargeScreen ? 0 : 8, 
-                    marginTop: isLargeScreen ? 0 : 4 
-                  }
-                ]}>
-                  <Text style={[styles.activityTime, { color: colors.textMuted }]}>{activity.time}</Text>
-                  {activity.type === 'cheat' && (
-                    <TouchableOpacity 
-                      style={styles.reviewBtn}
-                      onPress={async () => {
-                        if (activity.userId) {
-                          setLoading(true);
-                          try {
-                            const uList = await api.getAdminUsers(activity.detail.split(' — ').pop());
-                            if (uList.length > 0) {
-                              setReviewUserModal(uList[0]);
-                            } else {
-                              setReviewUserModal({ name: 'Flagged Student', isFlagged: true, flagReason: 'AI flagged rapid answers' });
-                            }
-                          } catch {
-                            setReviewUserModal({ name: 'Flagged Student', isFlagged: true, flagReason: 'AI flagged rapid answers' });
-                          } finally {
-                            setLoading(false);
-                          }
-                        } else {
-                          setReviewUserModal({ name: 'student #4421', isFlagged: true, flagReason: 'AI flagged rapid answers' });
-                        }
-                      }}
-                    >
-                      <Text style={styles.reviewBtnText}>Review ↗</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+          {/* Line Chart of Daily quiz activity */}
+          <View style={[styles.analyticsChartContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.chartTitleText, { color: colors.text }]}>Daily Quiz Activity (Past 30 Days)</Text>
+            {chartData.length > 0 ? (
+              <View style={{ alignItems: 'center', marginLeft: -20 }}>
+                <VictoryChart
+                  theme={VictoryTheme.material}
+                  height={200}
+                  width={340}
+                  padding={{ top: 20, bottom: 40, left: 45, right: 20 }}
+                >
+                  <VictoryAxis
+                    tickCount={6}
+                    style={{
+                      tickLabels: { fill: colors.textMuted, fontSize: 8 },
+                      axis: { stroke: colors.border },
+                      grid: { stroke: 'transparent' }
+                    }}
+                  />
+                  <VictoryAxis
+                    dependentAxis
+                    style={{
+                      tickLabels: { fill: colors.textMuted, fontSize: 8 },
+                      axis: { stroke: colors.border },
+                      grid: { stroke: colors.border, strokeDasharray: '4, 4' }
+                    }}
+                  />
+                  <VictoryArea
+                    data={chartData}
+                    style={{ data: { fill: '#3B82F6' + '20', stroke: '#3B82F6', strokeWidth: 2 } }}
+                    interpolation="natural"
+                  />
+                </VictoryChart>
               </View>
-            );
-          })}
+            ) : (
+              <Text style={[styles.emptyChartText, { color: colors.textMuted }]}>No quiz completions recorded.</Text>
+            )}
+          </View>
+
+          {/* Bar Chart of top courses */}
+          <View style={[styles.analyticsChartContainer, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 16 }]}>
+            <Text style={[styles.chartTitleText, { color: colors.text }]}>Top 5 Most Active Courses</Text>
+            {courseChartData.length > 0 ? (
+              <View style={{ alignItems: 'center', marginLeft: -20 }}>
+                <VictoryChart
+                  theme={VictoryTheme.material}
+                  height={180}
+                  width={340}
+                  padding={{ top: 20, bottom: 40, left: 45, right: 20 }}
+                  domain={{ y: [0, maxCourseAttempts + 1] }}
+                >
+                  <VictoryAxis
+                    style={{
+                      tickLabels: { fill: colors.textMuted, fontSize: 8, fontWeight: 'bold' },
+                      axis: { stroke: colors.border },
+                      grid: { stroke: 'transparent' }
+                    }}
+                  />
+                  <VictoryAxis
+                    dependentAxis
+                    style={{
+                      tickLabels: { fill: colors.textMuted, fontSize: 8 },
+                      axis: { stroke: colors.border },
+                      grid: { stroke: colors.border, strokeDasharray: '4, 4' }
+                    }}
+                  />
+                  <VictoryBar
+                    data={courseChartData}
+                    style={{ data: { fill: '#8B5CF6' } }}
+                    barWidth={18}
+                    cornerRadius={{ top: 4 }}
+                  />
+                </VictoryChart>
+              </View>
+            ) : (
+              <Text style={[styles.emptyChartText, { color: colors.textMuted }]}>No course activity data available.</Text>
+            )}
+          </View>
+
+          {/* Top struggled topics */}
+          <View style={[styles.analyticsChartContainer, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 16 }]}>
+            <Text style={[styles.chartTitleText, { color: colors.text }]}>Top 5 Most Struggled Topics (Low Accuracy)</Text>
+            {overviewData.topStruggledTopics && overviewData.topStruggledTopics.length > 0 ? (
+              <View style={{ marginTop: 8 }}>
+                {overviewData.topStruggledTopics.map((topic, idx) => (
+                  <View key={idx} style={styles.struggledTopicRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.struggledTopicName, { color: colors.text }]}>{topic.topic}</Text>
+                      <Text style={[styles.struggledTopicDetail, { color: colors.textMuted }]}>{topic.total} attempts logged</Text>
+                    </View>
+                    <View style={[styles.struggledTopicBadge, { backgroundColor: '#EF4444' + '15', borderColor: '#EF4444' }]}>
+                      <Text style={styles.struggledTopicBadgeText}>{topic.accuracy}% accuracy</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.emptyChartText, { color: colors.textMuted }]}>Not enough student quiz scores to evaluate struggled topics.</Text>
+            )}
+          </View>
+
         </View>
-      </View>
+      </ScrollView>
+    );
+  };
+
+  const renderFlags = () => {
+    const handleResolveFlag = async (flagId, status) => {
+      try {
+        await api.updateCheatFlagStatus(flagId, status);
+        Alert.alert('Success', `Flag resolved and marked as ${status}`);
+        loadData();
+      } catch (err) {
+        Alert.alert('Error', err.message || 'Failed to update flag');
+      }
+    };
+
+    return (
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        <View style={styles.panel}>
+          <Text style={[styles.panelTitleText, { color: colors.text }]}>Anti-Cheat Integrity Reports 🚨</Text>
+          <Text style={[styles.panelSubText, { color: colors.textMuted, marginBottom: 16 }]}>
+            Monitor and resolve automated system flags triggered by rapid responses, focus switches, and Claude AI integrity evaluations.
+          </Text>
+
+          {cheatFlags.length === 0 ? (
+            <Text style={[styles.emptyChartText, { color: colors.textMuted }]}>No cheating behavior has been flagged on this campus!</Text>
+          ) : (
+            cheatFlags.map((flag) => (
+              <View 
+                key={flag._id} 
+                style={[
+                  styles.flagCard, 
+                  { 
+                    backgroundColor: colors.card,
+                    borderColor: flag.status === 'unreviewed' ? '#EF4444' : flag.status === 'escalated' ? '#F59E0B' : colors.border
+                  }
+                ]}
+              >
+                <View style={styles.flagCardHeader}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={[styles.flagStudentName, { color: colors.text }]}>{flag.student?.name || 'Student'}</Text>
+                    <Text style={[styles.flagStudentEmail, { color: colors.textMuted }]}>{flag.student?.email}</Text>
+                  </View>
+                  <View 
+                    style={[
+                      styles.flagStatusBadge, 
+                      { 
+                        backgroundColor: flag.status === 'unreviewed' ? '#EF4444' + '15' : flag.status === 'escalated' ? '#F59E0B' + '15' : '#10B981' + '15',
+                        borderColor: flag.status === 'unreviewed' ? '#EF4444' : flag.status === 'escalated' ? '#F59E0B' : '#10B981'
+                      }
+                    ]}
+                  >
+                    <Text 
+                      style={[
+                        styles.flagStatusText, 
+                        { color: flag.status === 'unreviewed' ? '#EF4444' : flag.status === 'escalated' ? '#F59E0B' : '#10B981' }
+                      ]}
+                    >
+                      {flag.status}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.flagDetailsGrid}>
+                  <Text style={[styles.flagDetailText, { color: colors.textMuted }]}>
+                    Course: <Text style={{ color: colors.text, fontWeight: '700' }}>{flag.course?.code} — {flag.course?.name}</Text>
+                  </Text>
+                  <Text style={[styles.flagDetailText, { color: colors.textMuted }]}>
+                    Quiz: <Text style={{ color: colors.text, fontWeight: '700' }}>{flag.quiz?.title}</Text>
+                  </Text>
+                  <Text style={[styles.flagDetailText, { color: colors.textMuted }]}>
+                    Triggered At: <Text style={{ color: colors.text }}>{new Date(flag.timestamp).toLocaleString()}</Text>
+                  </Text>
+                </View>
+
+                <View style={[styles.flagReasonCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[styles.flagReasonHeader, { color: '#F59E0B' }]}>Integrity Violation Details:</Text>
+                  <Text style={[styles.flagReasonBody, { color: colors.text }]}>{flag.flagReason}</Text>
+                </View>
+
+                {flag.status === 'unreviewed' && (
+                  <View style={styles.flagCardActions}>
+                    <TouchableOpacity 
+                      style={[styles.flagBtnAction, { backgroundColor: '#10B981' }]}
+                      onPress={() => handleResolveFlag(flag._id, 'reviewed')}
+                    >
+                      <Text style={styles.flagBtnActionText}>Resolve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.flagBtnAction, { backgroundColor: '#EA580C' }]}
+                      onPress={() => handleResolveFlag(flag._id, 'escalated')}
+                    >
+                      <Text style={styles.flagBtnActionText}>Escalate</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
     );
   };
 
@@ -1001,7 +1129,7 @@ export default function AdminDashboard({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.toggleRow}>
+           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={styles.toggleTitle}>Peer Quiz Generation</Text>
               <Text style={styles.toggleSub}>Permit students to author challenges for classmates</Text>
@@ -1011,6 +1139,32 @@ export default function AdminDashboard({ navigation }) {
               onPress={() => toggle('peerQuiz')}
             >
               <View style={[styles.switchKnob, settings.toggles.peerQuiz ? styles.switchKnobOn : styles.switchKnobOff]} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.toggleTitle}>Biometric Authentication</Text>
+              <Text style={styles.toggleSub}>TouchID / FaceID login capability for students</Text>
+            </View>
+            <TouchableOpacity 
+              style={[styles.switch, settings.toggles.biometricLogin ? styles.switchOn : styles.switchOff]}
+              onPress={() => toggle('biometricLogin')}
+            >
+              <View style={[styles.switchKnob, settings.toggles.biometricLogin ? styles.switchKnobOn : styles.switchKnobOff]} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.toggleTitle}>Push Notifications</Text>
+              <Text style={styles.toggleSub}>Daily reminders and study streak alert triggers</Text>
+            </View>
+            <TouchableOpacity 
+              style={[styles.switch, settings.toggles.pushNotifications ? styles.switchOn : styles.switchOff]}
+              onPress={() => toggle('pushNotifications')}
+            >
+              <View style={[styles.switchKnob, settings.toggles.pushNotifications ? styles.switchKnobOn : styles.switchKnobOff]} />
             </TouchableOpacity>
           </View>
         </View>

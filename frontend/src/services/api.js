@@ -189,6 +189,27 @@ export const api = {
   updateAdminSettings: (data) => 
     request('/admin/settings', { method: 'PUT', body: data }),
 
+  getQuizAnalytics: (quizId) =>
+    request(`/analytics/quiz/${quizId}`, { method: 'GET' }),
+
+  getStudentReport: () =>
+    request('/analytics/student/report', { method: 'GET' }),
+
+  getAdminAnalytics: () =>
+    request('/analytics/admin/dashboard', { method: 'GET' }),
+
+  getAdminCheatFlags: () =>
+    request('/admin/anti-cheat', { method: 'GET' }),
+
+  updateCheatFlagStatus: (flagId, status) =>
+    request(`/admin/anti-cheat/${flagId}`, { method: 'PATCH', body: { status } }),
+
+  getAdminCheatFlagsUnreadCount: () =>
+    request('/admin/anti-cheat/unreviewed-count', { method: 'GET' }),
+
+  deleteQuiz: (quizId) =>
+    request(`/quizzes/${quizId}`, { method: 'DELETE' }),
+
   // Duels
   challengePeer: (challengedUsername, quizId, challengerScore) =>
     request('/duels/challenge', { method: 'POST', body: { challengedUsername, quizId, challengerScore } }),

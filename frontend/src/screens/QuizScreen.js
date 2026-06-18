@@ -344,18 +344,20 @@ export default function QuizScreen({ route, navigation }) {
       isCorrect = keywords.some(keyword => answerGiven.toLowerCase().includes(keyword));
     }
 
+    const elapsedSeconds = Math.round((Date.now() - questionStartTime) / 1000);
+
     const currentResponse = {
       questionId: currentQuestion._id,
       topic: currentQuestion.topic,
       difficulty: currentQuestion.difficulty,
       answerGiven,
-      isCorrect
+      isCorrect,
+      timeSpent: elapsedSeconds
     };
 
     const nextResponses = [...responses, currentResponse];
     setResponses(nextResponses);
 
-    const elapsedSeconds = Math.round((Date.now() - questionStartTime) / 1000);
     const updatedTimings = [...questionTimings, elapsedSeconds];
     setQuestionTimings(updatedTimings);
 
