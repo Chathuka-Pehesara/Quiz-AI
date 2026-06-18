@@ -23,6 +23,8 @@ import StudyPlannerScreen from './src/screens/StudyPlannerScreen';
 import GroupsListScreen from './src/screens/GroupsListScreen';
 import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import DiscussionScreen from './src/screens/DiscussionScreen';
+import StudentReportScreen from './src/screens/StudentReportScreen';
+import QuizAnalyticsScreen from './src/screens/QuizAnalyticsScreen';
 
 const Stack = createStackNavigator();
 
@@ -108,6 +110,10 @@ function AppNavigation() {
           <Stack.Screen name="GroupsList" component={GroupsListScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
           <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
           <Stack.Screen name="Discussion" component={DiscussionScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
+
+          {/* Analytics & Reports */}
+          <Stack.Screen name="StudentReport" component={StudentReportScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
+          <Stack.Screen name="QuizAnalytics" component={QuizAnalyticsScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
         </Stack.Navigator>
       </NavigationContainer>
     </View>

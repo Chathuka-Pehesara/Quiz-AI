@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Share, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Share, Alert, Platform, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import ViewShot from 'react-native-view-shot';
 import AntigravityPhysics from '../components/AntigravityPhysics';
+import { api } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -22,9 +23,28 @@ export default function ResultScreen({ route, navigation }) {
   const [badgeModalVisible, setBadgeModalVisible] = useState(false);
   const viewShotRef = useRef(null);
 
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [antigravityEnabled, setAntigravityEnabled] = useState(true);
+
   // Reanimated values for badge popup
   const scale = useSharedValue(0.3);
   const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settings = await api.getAdminSettings();
+        if (settings && settings.toggles && settings.toggles.antigravity === false) {
+          setAntigravityEnabled(false);
+        }
+      } catch (err) {
+        console.warn('Failed to load settings in ResultScreen:', err);
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     if (badgesUnlocked && badgesUnlocked.length > 0) {
@@ -77,7 +97,7 @@ export default function ResultScreen({ route, navigation }) {
   };
 
   // If student gets a perfect 100%, trigger the Antigravity Physics animation!
-  if (percentage === 100) {
+  if (percentage === 100 && !settingsLoading && antigravityEnabled) {
     return (
       <AntigravityPhysics 
         onBackHome={handleGoHome} 
@@ -85,6 +105,14 @@ export default function ResultScreen({ route, navigation }) {
         streak={streak} 
         badges={badgesUnlocked}
       />
+    );
+  }
+
+  if (percentage === 100 && settingsLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
     );
   }
 

@@ -23,6 +23,7 @@ export default function StudentDashboard({ navigation }) {
   const isFocused = useIsFocused();
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [platformSettings, setPlatformSettings] = useState(null);
   
   useEffect(() => {
     const checkRole = async () => {
@@ -70,22 +71,38 @@ export default function StudentDashboard({ navigation }) {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      let settings = null;
+      try {
+        settings = await api.getAdminSettings();
+        setPlatformSettings(settings);
+      } catch (settingsErr) {
+        console.warn('Failed to load platform settings in StudentDashboard:', settingsErr);
+      }
+
       const profile = await api.getProfile();
       setUser(profile);
 
       const metrics = await api.getStudentDashboard();
       setDashboardData(metrics);
 
-      try {
-        const duels = await api.getActiveDuels();
-        setActiveDuels(duels);
-      } catch (duelErr) {
-        console.warn('Failed to load active duels:', duelErr);
+      const liveBattlesEnabled = !settings || !settings.toggles || settings.toggles.liveBattles !== false;
+      if (liveBattlesEnabled) {
+        try {
+          const duels = await api.getActiveDuels();
+          setActiveDuels(duels);
+        } catch (duelErr) {
+          console.warn('Failed to load active duels:', duelErr);
+        }
+      } else {
+        setActiveDuels([]);
       }
 
-      scheduleSmartReminders(profile.activeTimes, metrics.streak, profile.lastActiveDate).catch(e =>
-        console.warn('Failed to schedule notifications:', e)
-      );
+      const notificationsEnabled = !settings || !settings.toggles || settings.toggles.pushNotifications !== false;
+      if (notificationsEnabled) {
+        scheduleSmartReminders(profile.activeTimes, metrics.streak, profile.lastActiveDate).catch(e =>
+          console.warn('Failed to schedule notifications:', e)
+        );
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -96,21 +113,37 @@ export default function StudentDashboard({ navigation }) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
+      let settings = null;
+      try {
+        settings = await api.getAdminSettings();
+        setPlatformSettings(settings);
+      } catch (settingsErr) {
+        console.warn('Failed to load platform settings in StudentDashboard:', settingsErr);
+      }
+
       const profile = await api.getProfile();
       setUser(profile);
       const metrics = await api.getStudentDashboard();
       setDashboardData(metrics);
 
-      try {
-        const duels = await api.getActiveDuels();
-        setActiveDuels(duels);
-      } catch (duelErr) {
-        console.warn('Failed to load active duels:', duelErr);
+      const liveBattlesEnabled = !settings || !settings.toggles || settings.toggles.liveBattles !== false;
+      if (liveBattlesEnabled) {
+        try {
+          const duels = await api.getActiveDuels();
+          setActiveDuels(duels);
+        } catch (duelErr) {
+          console.warn('Failed to load active duels:', duelErr);
+        }
+      } else {
+        setActiveDuels([]);
       }
 
-      scheduleSmartReminders(profile.activeTimes, metrics.streak, profile.lastActiveDate).catch(e =>
-        console.warn('Failed to schedule notifications:', e)
-      );
+      const notificationsEnabled = !settings || !settings.toggles || settings.toggles.pushNotifications !== false;
+      if (notificationsEnabled) {
+        scheduleSmartReminders(profile.activeTimes, metrics.streak, profile.lastActiveDate).catch(e =>
+          console.warn('Failed to schedule notifications:', e)
+        );
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -514,104 +547,108 @@ export default function StudentDashboard({ navigation }) {
         </View>
 
         {/* 1v1 Async Duels Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <Text style={styles.cardHeaderEmoji}>⚔️</Text>
-              <Text style={styles.cardTitle}>1v1 Async Duels</Text>
+        {(!platformSettings || platformSettings.toggles?.liveBattles !== false) && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.cardHeaderEmoji}>⚔️</Text>
+                <Text style={styles.cardTitle}>1v1 Async Duels</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.challengeTriggerBtn}
+                onPress={() => setChallengeModalVisible(true)}
+              >
+                <Text style={styles.challengeTriggerText}>Challenge Peer</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.challengeTriggerBtn}
-              onPress={() => setChallengeModalVisible(true)}
-            >
-              <Text style={styles.challengeTriggerText}>Challenge Peer</Text>
-            </TouchableOpacity>
+
+            {activeDuels.length === 0 ? (
+              <Text style={styles.emptyActivityText}>No active duels. Challenge a classmate to test your speed & knowledge!</Text>
+            ) : (
+              activeDuels.slice(0, 3).map((duel) => {
+                const isChallenger = duel.challenger?._id === user?._id;
+                const opponent = isChallenger ? duel.challenged : duel.challenger;
+                const myScore = isChallenger ? duel.challengerScore : duel.challengedScore;
+                const opScore = isChallenger ? duel.challengedScore : duel.challengerScore;
+                const opponentCompleted = isChallenger ? duel.challengedCompleted : duel.challengerCompleted;
+
+                let duelStatusText = '';
+                let canPlay = false;
+
+                if (duel.status === 'pending') {
+                  if (isChallenger) {
+                    duelStatusText = `Waiting for ${opponent?.name || 'opponent'}...`;
+                  } else {
+                    duelStatusText = `${opponent?.name || 'Opponent'} challenged you!`;
+                    canPlay = true;
+                  }
+                } else if (duel.status === 'completed') {
+                  if (duel.winner) {
+                    duelStatusText = duel.winner._id === user?._id ? 'You Won! 🎉' : 'You Lost 😢';
+                  } else {
+                    duelStatusText = "It's a tie! 🤝";
+                  }
+                } else if (duel.status === 'expired') {
+                  duelStatusText = 'Expired ⏱️';
+                }
+
+                return (
+                  <View key={duel._id} style={styles.duelRow}>
+                    <View style={styles.duelInfo}>
+                      <Text style={styles.duelOpponent}>vs {opponent?.name || 'Classmate'}</Text>
+                      <Text style={styles.duelQuiz}>{duel.quiz?.title || 'Quiz'}</Text>
+                      <Text style={styles.duelStatus}>{duelStatusText}</Text>
+                    </View>
+
+                    <View style={styles.duelScoreAction}>
+                      <Text style={styles.duelScoreText}>
+                        {myScore !== undefined ? myScore : '?'} - {opponentCompleted ? opScore : '?'}
+                      </Text>
+                      {canPlay && (
+                        <TouchableOpacity
+                          style={styles.playDuelBtn}
+                          onPress={() => navigation.navigate('Quiz', { quizId: duel.quiz?._id, activeDuelId: duel._id })}
+                        >
+                          <Text style={styles.playDuelBtnText}>Play</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            )}
           </View>
-
-          {activeDuels.length === 0 ? (
-            <Text style={styles.emptyActivityText}>No active duels. Challenge a classmate to test your speed & knowledge!</Text>
-          ) : (
-            activeDuels.slice(0, 3).map((duel) => {
-              const isChallenger = duel.challenger?._id === user?._id;
-              const opponent = isChallenger ? duel.challenged : duel.challenger;
-              const myScore = isChallenger ? duel.challengerScore : duel.challengedScore;
-              const opScore = isChallenger ? duel.challengedScore : duel.challengerScore;
-              const opponentCompleted = isChallenger ? duel.challengedCompleted : duel.challengerCompleted;
-
-              let duelStatusText = '';
-              let canPlay = false;
-
-              if (duel.status === 'pending') {
-                if (isChallenger) {
-                  duelStatusText = `Waiting for ${opponent?.name || 'opponent'}...`;
-                } else {
-                  duelStatusText = `${opponent?.name || 'Opponent'} challenged you!`;
-                  canPlay = true;
-                }
-              } else if (duel.status === 'completed') {
-                if (duel.winner) {
-                  duelStatusText = duel.winner._id === user?._id ? 'You Won! 🎉' : 'You Lost 😢';
-                } else {
-                  duelStatusText = "It's a tie! 🤝";
-                }
-              } else if (duel.status === 'expired') {
-                duelStatusText = 'Expired ⏱️';
-              }
-
-              return (
-                <View key={duel._id} style={styles.duelRow}>
-                  <View style={styles.duelInfo}>
-                    <Text style={styles.duelOpponent}>vs {opponent?.name || 'Classmate'}</Text>
-                    <Text style={styles.duelQuiz}>{duel.quiz?.title || 'Quiz'}</Text>
-                    <Text style={styles.duelStatus}>{duelStatusText}</Text>
-                  </View>
-
-                  <View style={styles.duelScoreAction}>
-                    <Text style={styles.duelScoreText}>
-                      {myScore !== undefined ? myScore : '?'} - {opponentCompleted ? opScore : '?'}
-                    </Text>
-                    {canPlay && (
-                      <TouchableOpacity
-                        style={styles.playDuelBtn}
-                        onPress={() => navigation.navigate('Quiz', { quizId: duel.quiz?._id, activeDuelId: duel._id })}
-                      >
-                        <Text style={styles.playDuelBtnText}>Play</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            })
-          )}
-        </View>
+        )}
 
         {/* Live Quiz Battle card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <Text style={styles.cardHeaderEmoji}>⚡</Text>
-              <Text style={styles.cardTitle}>Live quiz battle</Text>
+        {(!platformSettings || platformSettings.toggles?.liveBattles !== false) && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.cardHeaderEmoji}>⚡</Text>
+                <Text style={styles.cardTitle}>Live quiz battle</Text>
+              </View>
+              <View style={styles.liveBadge}>
+                <Text style={styles.liveBadgeText}>{liveRooms} rooms live</Text>
+              </View>
             </View>
-            <View style={styles.liveBadge}>
-              <Text style={styles.liveBadgeText}>{liveRooms} rooms live</Text>
-            </View>
-          </View>
 
-          <View style={styles.actionRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter 6-digit room code"
-              placeholderTextColor="#71717A"
-              keyboardType="number-pad"
-              maxLength={6}
-              value={battleCode}
-              onChangeText={setBattleCode}
-            />
-            <TouchableOpacity style={styles.joinBtn} onPress={handleJoinBattle}>
-              <Text style={styles.btnText}>Join</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter 6-digit room code"
+                placeholderTextColor="#71717A"
+                keyboardType="number-pad"
+                maxLength={6}
+                value={battleCode}
+                onChangeText={setBattleCode}
+              />
+              <TouchableOpacity style={styles.joinBtn} onPress={handleJoinBattle}>
+                <Text style={styles.btnText}>Join</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Enroll In Class card */}
         <View style={styles.card}>

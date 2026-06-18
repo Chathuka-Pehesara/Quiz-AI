@@ -1182,6 +1182,7 @@ export default function AdminDashboard({ navigation }) {
   const renderMobileTabBar = () => {
     const tabs = [
       { id: 'overview', icon: '📊', label: 'Overview' },
+      { id: 'flags', icon: '🚨', label: 'Flags' },
       { id: 'quizzes', icon: '📝', label: 'Quizzes' },
       { id: 'users', icon: '👥', label: 'Users' },
       { id: 'courses', icon: '🎓', label: 'Courses' },
@@ -1260,6 +1261,7 @@ export default function AdminDashboard({ navigation }) {
         ) : (
           <>
             {activeTab === 'overview' && renderOverview()}
+            {activeTab === 'flags' && renderFlags()}
             {activeTab === 'quizzes' && renderQuizzes()}
             {activeTab === 'users' && renderUsers()}
             {activeTab === 'courses' && renderCourses()}

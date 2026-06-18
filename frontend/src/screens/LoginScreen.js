@@ -15,15 +15,27 @@ export default function LoginScreen({ navigation }) {
 
   useEffect(() => {
     const checkBiometrics = async () => {
+      let biometricAllowed = true;
+      try {
+        const settings = await api.getAdminSettings();
+        if (settings && settings.toggles && settings.toggles.biometricLogin === false) {
+          biometricAllowed = false;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch platform settings on login load:', err);
+      }
+
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      setBiometricsSupported(hasHardware && isEnrolled);
+      
+      const supported = hasHardware && isEnrolled && biometricAllowed;
+      setBiometricsSupported(supported);
 
       const isEnabled = await AsyncStorage.getItem('biometrics_enabled');
-      setBiometricsEnabled(isEnabled === 'true');
+      setBiometricsEnabled(isEnabled === 'true' && biometricAllowed);
 
       // Auto-trigger biometrics if enabled
-      if (hasHardware && isEnrolled && isEnabled === 'true') {
+      if (supported && isEnabled === 'true' && biometricAllowed) {
         setTimeout(() => {
           handleBiometricLogin();
         }, 300);
