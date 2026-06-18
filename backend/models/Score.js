@@ -37,6 +37,10 @@ const ScoreSchema = new mongoose.Schema({
     isCorrect: {
       type: Boolean,
       required: true
+    },
+    timeSpent: {
+      type: Number,
+      default: 0
     }
   }],
   completedAt: {

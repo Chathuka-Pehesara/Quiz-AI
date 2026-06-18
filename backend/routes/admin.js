@@ -5,6 +5,8 @@ const User = require('../models/User');
 const Quiz = require('../models/Quiz');
 const Course = require('../models/Course');
 const Score = require('../models/Score');
+const PlatformSettings = require('../models/PlatformSettings');
+const CheatFlag = require('../models/CheatFlag');
 const auth = require('../middleware/auth');
 const roomsStore = require('../sockets/roomsStore');
 const router = express.Router();
@@ -351,24 +353,114 @@ router.delete('/courses/:id', auth('admin'), async (req, res) => {
 });
 
 // 5. System Config & Settings
-// GET settings
-router.get('/settings', auth('admin'), (req, res) => {
-  res.json(getSettings());
+// GET settings (Open to all authenticated/unauthenticated users so they can fetch features at launch)
+router.get('/settings', async (req, res) => {
+  try {
+    let settings = await PlatformSettings.findOne();
+    if (!settings) {
+      settings = new PlatformSettings();
+      await settings.save();
+    }
+    const settingsObj = settings.toObject();
+    settingsObj.claudeApiKeyConfigured = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    res.json(settingsObj);
+  } catch (err) {
+    console.error('Failed to get settings:', err);
+    res.status(500).json({ message: 'Server error retrieving system configuration' });
+  }
 });
 
-// PUT update settings
-router.put('/settings', auth('admin'), (req, res) => {
+// PUT update settings (Admin only)
+router.put('/settings', auth('admin'), async (req, res) => {
   try {
-    const current = getSettings();
-    const updated = {
-      ...current,
-      ...req.body
-    };
-    saveSettings(updated);
-    res.json(updated);
+    let settings = await PlatformSettings.findOne();
+    if (!settings) {
+      settings = new PlatformSettings();
+    }
+
+    if (req.body.universityName !== undefined) settings.universityName = req.body.universityName;
+    if (req.body.adminEmail !== undefined) settings.adminEmail = req.body.adminEmail;
+    if (req.body.questionsPerUpload !== undefined) settings.questionsPerUpload = req.body.questionsPerUpload;
+    if (req.body.questionTypes !== undefined) settings.questionTypes = req.body.questionTypes;
+    if (req.body.antiCheatSensitivity !== undefined) settings.antiCheatSensitivity = req.body.antiCheatSensitivity;
+
+    if (req.body.toggles !== undefined) {
+      settings.toggles = {
+        ...settings.toggles,
+        ...req.body.toggles
+      };
+    }
+
+    await settings.save();
+    
+    const settingsObj = settings.toObject();
+    settingsObj.claudeApiKeyConfigured = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    res.json(settingsObj);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to update settings' });
+    console.error('Failed to save settings:', err);
+    res.status(500).json({ message: 'Failed to update system config settings' });
+  }
+});
+
+// 6. Anti-Cheat Flag Operations (Admin only)
+// GET unreviewed count
+router.get('/anti-cheat/unreviewed-count', auth('admin'), async (req, res) => {
+  try {
+    const count = await CheatFlag.countDocuments({ status: 'unreviewed' });
+    res.json({ count });
+  } catch (err) {
+    console.error('Failed to get unreviewed count:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET all anti-cheat flags
+router.get('/anti-cheat', auth('admin'), async (req, res) => {
+  try {
+    const flags = await CheatFlag.find()
+      .populate('student', 'name email isFlagged flagReason')
+      .populate('quiz', 'title')
+      .populate('course', 'code name')
+      .sort({ timestamp: -1 });
+    res.json(flags);
+  } catch (err) {
+    console.error('Failed to fetch anti-cheat records:', err);
+    res.status(500).json({ message: 'Server error fetching cheat flags' });
+  }
+});
+
+// PATCH update flag status
+router.patch('/anti-cheat/:flagId', auth('admin'), async (req, res) => {
+  const { status } = req.body;
+  if (!['reviewed', 'escalated'].includes(status)) {
+    return res.status(400).json({ message: 'Invalid status. Must be reviewed or escalated.' });
+  }
+  try {
+    const flag = await CheatFlag.findById(req.params.flagId);
+    if (!flag) {
+      return res.status(404).json({ message: 'Cheat flag record not found' });
+    }
+
+    flag.status = status;
+    await flag.save();
+
+    // Sync student flag status in User document
+    if (status === 'reviewed') {
+      const activeFlagsCount = await CheatFlag.countDocuments({
+        student: flag.student,
+        status: { $in: ['unreviewed', 'escalated'] }
+      });
+      if (activeFlagsCount === 0) {
+        await User.findByIdAndUpdate(flag.student, { isFlagged: false, flagReason: '' });
+      }
+    } else if (status === 'escalated') {
+      await User.findByIdAndUpdate(flag.student, { isFlagged: true });
+    }
+
+    res.json(flag);
+  } catch (err) {
+    console.error('Failed to update anti-cheat record:', err);
+    res.status(500).json({ message: 'Server error updating cheat flag' });
   }
 });
 

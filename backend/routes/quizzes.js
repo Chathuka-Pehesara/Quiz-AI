@@ -8,6 +8,7 @@ const claude = require('../services/claudeService');
 const UserCourseDifficulty = require('../models/UserCourseDifficulty');
 const SpacedRepetition = require('../models/SpacedRepetition');
 const UserQuizMapping = require('../models/UserQuizMapping');
+const CheatFlag = require('../models/CheatFlag');
 const auth = require('../middleware/auth');
 const router = express.Router();
 
@@ -206,13 +207,34 @@ router.patch('/:id/publish', auth('professor'), async (req, res) => {
   }
 });
 
-// Fetch active quizzes for a course (Student view)
+// Delete quiz (Professor only)
+router.delete('/:id', auth('professor'), async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.id);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Quiz not found' });
+    }
+
+    if (quiz.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to delete this quiz' });
+    }
+
+    await Quiz.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Quiz deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Fetch quizzes for a course (Student view sees published only, Professors see drafts too)
 router.get('/course/:courseId', auth(), async (req, res) => {
   try {
-    const quizzes = await Quiz.find({
-      course: req.params.courseId,
-      isPublished: true
-    });
+    const query = { course: req.params.courseId };
+    if (req.user.role !== 'professor' && req.user.role !== 'admin') {
+      query.isPublished = true;
+    }
+    const quizzes = await Quiz.find(query);
     res.json(quizzes);
   } catch (err) {
     console.error(err);
@@ -883,6 +905,22 @@ router.post('/:id/anti-cheat', auth('student'), async (req, res) => {
       student.isFlagged = true;
       student.flagReason = `AI detected cheating: ${reasons.join(' | ')}`;
       await student.save();
+
+      // Find the quiz and save a detailed CheatFlag record
+      try {
+        const quiz = await Quiz.findById(req.params.id);
+        if (quiz) {
+          const newFlag = new CheatFlag({
+            student: req.user.id,
+            quiz: quiz._id,
+            course: quiz.course,
+            flagReason: student.flagReason
+          });
+          await newFlag.save();
+        }
+      } catch (flagErr) {
+        console.error('Failed to create CheatFlag document:', flagErr);
+      }
       
       console.log(`[ANTI-CHEAT] Student ${student.name} flagged. Reason: ${student.flagReason}`);
     }

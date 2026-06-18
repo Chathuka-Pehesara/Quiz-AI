@@ -408,10 +408,46 @@ async function analyzeCheatPattern(timings, answerSequence, appStateChanges) {
   }
 }
 
+/**
+ * Generate a 3-sentence personalized insight based on student quiz stats.
+ */
+async function generateStudentReportInsight(reportData) {
+  if (isKeyMissing) {
+    return "You have made consistent progress across your enrolled courses, demonstrating strong performance in core topics. Focus on reinforcing your weaker areas by using the adaptive quiz engine regularly. Keep maintaining your daily study habit to maximize knowledge retention.";
+  }
+
+  try {
+    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        temperature: 0.5,
+        system: `You are an academic learning advisor. Write a 3-sentence personalized insight summary for a student based on their quiz performance metrics. Be encouraging, actionable, and reference their strongest and weakest topics. Do not write introductory words like 'Here is your summary'. Return only the 3 sentences of text.`,
+        messages: [
+          { role: 'user', content: `Student Metrics:\n${JSON.stringify(reportData)}` }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    return data.content[0].text.trim();
+  } catch (err) {
+    console.error('Failed to get student report insight from Claude, returning fallback:', err);
+    return "You have made consistent progress across your enrolled courses, demonstrating strong performance in core topics. Focus on reinforcing your weaker areas by using the adaptive quiz engine regularly. Keep maintaining your daily study habit to maximize knowledge retention.";
+  }
+}
+
 module.exports = {
   generateQuestions,
   explainWrongAnswer,
   generateStudyPlan,
   generateHint,
-  analyzeCheatPattern
+  analyzeCheatPattern,
+  generateStudentReportInsight
 };

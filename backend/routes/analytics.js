@@ -279,9 +279,7 @@ router.get('/student/knowledge-gap', auth('student'), async (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
-});
-
-// Get Professor Course Analytics
+});// Get Professor Course Analytics
 router.get('/course/:courseId', auth('professor'), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -339,6 +337,7 @@ router.get('/course/:courseId', auth('professor'), async (req, res) => {
     scores.forEach(s => {
       s.answers.forEach(ans => {
         const { topic, isCorrect } = ans;
+        if (!topic || !topic.trim()) return;
         if (!topicPerformance[topic]) {
           topicPerformance[topic] = { correct: 0, total: 0 };
         }
@@ -358,16 +357,227 @@ router.get('/course/:courseId', auth('professor'), async (req, res) => {
       };
     });
 
+    // Heatmap per-question correctness metrics
+    const questionStats = {};
+    quizzes.forEach(quiz => {
+      quiz.questions.forEach(q => {
+        questionStats[q._id.toString()] = {
+          questionId: q._id.toString(),
+          text: q.text,
+          quizTitle: quiz.title,
+          difficulty: q.difficulty,
+          correctCount: 0,
+          totalCount: 0
+        };
+      });
+    });
+
+    scores.forEach(s => {
+      s.answers.forEach(ans => {
+        const qIdStr = ans.questionId ? ans.questionId.toString() : '';
+        if (questionStats[qIdStr]) {
+          questionStats[qIdStr].totalCount += 1;
+          if (ans.isCorrect) {
+            questionStats[qIdStr].correctCount += 1;
+          }
+        }
+      });
+    });
+
+    const questionHeatmap = Object.values(questionStats).map(stat => {
+      const correctRate = stat.totalCount > 0 ? Math.round((stat.correctCount / stat.totalCount) * 100) : 100;
+      return {
+        questionId: stat.questionId,
+        text: stat.text,
+        quizTitle: stat.quizTitle,
+        difficulty: stat.difficulty,
+        correctRate,
+        totalAnswers: stat.totalCount
+      };
+    });
+
+    const quizzesPublishedCount = quizzes.filter(q => q.isPublished).length;
+
     res.json({
       classAverage,
       totalQuizzes: quizzes.length,
       totalSubmissions: scores.length,
       studentWise: Object.values(studentPerformance),
-      topicWise: topicStats
+      topicWise: topicStats,
+      totalStudentsEnrolled: course.students.length,
+      quizzesPublishedCount,
+      questionHeatmap
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Failed to compile course analytics:', err);
+    res.status(500).json({ message: 'Server error compiling class statistics' });
+  }
+});
+
+// Get Professor Quiz Question Analytics
+router.get('/quiz/:quizId', auth('professor'), async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Quiz not found' });
+    }
+
+    const scores = await Score.find({ quiz: quizId });
+
+    const questionsAnalytics = quiz.questions.map(q => {
+      const qIdStr = q._id.toString();
+      let correctCount = 0;
+      let incorrectCount = 0;
+      let totalTime = 0;
+      const wrongAnswersMap = {};
+
+      scores.forEach(s => {
+        const ans = s.answers.find(a => a.questionId && a.questionId.toString() === qIdStr);
+        if (ans) {
+          if (ans.isCorrect) {
+            correctCount += 1;
+          } else {
+            incorrectCount += 1;
+            if (ans.answerGiven) {
+              const wrongAns = ans.answerGiven.trim();
+              if (wrongAns) {
+                wrongAnswersMap[wrongAns] = (wrongAnswersMap[wrongAns] || 0) + 1;
+              }
+            }
+          }
+          totalTime += ans.timeSpent || 0;
+        }
+      });
+
+      const totalAttempts = correctCount + incorrectCount;
+      const averageTime = totalAttempts > 0 ? Math.round(totalTime / totalAttempts) : 0;
+
+      // Find most common wrong answer
+      let mostCommonWrongAnswer = 'None';
+      let maxWrongCount = 0;
+      Object.keys(wrongAnswersMap).forEach(ans => {
+        if (wrongAnswersMap[ans] > maxWrongCount) {
+          maxWrongCount = wrongAnswersMap[ans];
+          mostCommonWrongAnswer = ans;
+        }
+      });
+
+      return {
+        questionId: qIdStr,
+        text: q.text,
+        correctCount,
+        incorrectCount,
+        averageTime,
+        mostCommonWrongAnswer
+      };
+    });
+
+    res.json({
+      quizTitle: quiz.title,
+      totalSubmissions: scores.length,
+      questions: questionsAnalytics
+    });
+  } catch (err) {
+    console.error('Failed to get quiz analytics:', err);
+    res.status(500).json({ message: 'Server error retrieving quiz statistics' });
+  }
+});
+
+// Get Student Semester Performance Report
+router.get('/student/report', auth('student'), async (req, res) => {
+  try {
+    const student = await User.findById(req.user.id).populate('courses');
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    const scores = await Score.find({ student: student._id });
+
+    // Quizzes taken
+    const quizzesTakenCount = scores.length;
+
+    // Average score per course
+    const courseAverages = [];
+    for (const course of student.courses) {
+      const quizzes = await Quiz.find({ course: course._id });
+      const quizIds = quizzes.map(q => q._id.toString());
+      const courseScores = scores.filter(s => quizIds.includes(s.quiz.toString()));
+      
+      let averageScore = 0;
+      if (courseScores.length > 0) {
+        const sum = courseScores.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions) * 100, 0);
+        averageScore = Math.round(sum / courseScores.length);
+      }
+      courseAverages.push({
+        courseId: course._id,
+        code: course.code,
+        name: course.name,
+        averageScore
+      });
+    }
+
+    // Weakest and strongest topics
+    const topicStats = {};
+    scores.forEach(s => {
+      s.answers.forEach(ans => {
+        if (!ans.topic) return;
+        const topic = ans.topic.trim();
+        if (!topicStats[topic]) topicStats[topic] = { correct: 0, total: 0 };
+        topicStats[topic].total += 1;
+        if (ans.isCorrect) topicStats[topic].correct += 1;
+      });
+    });
+
+    const topicsPerformance = Object.keys(topicStats).map(topic => {
+      const { correct, total } = topicStats[topic];
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+      return { topic, accuracy, total };
+    });
+
+    const sortedStrongest = [...topicsPerformance].sort((a, b) => b.accuracy - a.accuracy || b.total - a.total);
+    const sortedWeakest = [...topicsPerformance].sort((a, b) => a.accuracy - b.accuracy || b.total - a.total);
+
+    const strongestTopics = sortedStrongest.slice(0, 2).map(t => `${t.topic} (${t.accuracy}% accuracy)`);
+    const weakestTopics = sortedWeakest.slice(0, 2).map(t => `${t.topic} (${t.accuracy}% accuracy)`);
+
+    const streak = student.streak || 0;
+    const badges = student.badges || [];
+    const xp = student.xp || 0;
+    const level = student.level || 'Bronze';
+
+    const reportDataForClaude = {
+      name: student.name,
+      coursesEnrolled: student.courses.map(c => c.code),
+      quizzesTakenCount,
+      courseAverages,
+      strongestTopics,
+      weakestTopics,
+      streak,
+      badgesCount: badges.length,
+      xp,
+      level
+    };
+
+    // Call Claude for personalized summary
+    const aiSummary = await claudeService.generateStudentReportInsight(reportDataForClaude);
+
+    res.json({
+      studentName: student.name,
+      coursesEnrolled: student.courses.map(c => ({ code: c.code, name: c.name })),
+      quizzesTakenCount,
+      courseAverages,
+      strongestTopics,
+      weakestTopics,
+      streak,
+      badges: badges.map(b => b.name),
+      xp,
+      level,
+      aiSummary
+    });
+  } catch (err) {
+    console.error('Failed to get student report:', err);
+    res.status(500).json({ message: 'Server error compiling performance report' });
   }
 });
 
@@ -423,6 +633,116 @@ router.get('/student/study-plan', auth('student'), async (req, res) => {
   } catch (err) {
     console.error('Error generating study plan:', err);
     res.status(500).json({ message: 'Server error: ' + err.message });
+  }
+});
+
+// Get Admin Analytics Dashboard Metrics
+router.get('/admin/dashboard', auth('admin'), async (req, res) => {
+  try {
+    const totalActiveStudents = await User.countDocuments({ role: 'student' });
+    
+    // Quizzes taken this week (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const totalQuizzesTakenThisWeek = await Score.countDocuments({
+      completedAt: { $gte: sevenDaysAgo }
+    });
+
+    // Average score across all courses
+    const allScores = await Score.find().populate('quiz', 'course');
+    let avgScore = 0;
+    if (allScores.length > 0) {
+      const sum = allScores.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions) * 100, 0);
+      avgScore = Math.round(sum / allScores.length);
+    }
+
+    // Top 5 most active courses
+    const courseStats = {};
+    for (const score of allScores) {
+      if (score.quiz && score.quiz.course) {
+        const courseId = score.quiz.course.toString();
+        courseStats[courseId] = (courseStats[courseId] || 0) + 1;
+      }
+    }
+
+    const courseList = await Course.find({ _id: { $in: Object.keys(courseStats) } });
+    const topCourses = Object.keys(courseStats).map(cId => {
+      const c = courseList.find(course => course._id.toString() === cId);
+      return {
+        courseId: cId,
+        code: c ? c.code : 'CS',
+        name: c ? c.name : 'Unknown',
+        attempts: courseStats[cId]
+      };
+    }).sort((a, b) => b.attempts - a.attempts).slice(0, 5);
+
+    // Top 5 most struggled topics across all students
+    const topicStats = {};
+    allScores.forEach(s => {
+      s.answers.forEach(ans => {
+        if (!ans.topic) return;
+        const topic = ans.topic.trim();
+        if (!topicStats[topic]) topicStats[topic] = { correct: 0, total: 0 };
+        topicStats[topic].total += 1;
+        if (ans.isCorrect) topicStats[topic].correct += 1;
+      });
+    });
+
+    const topStruggledTopics = Object.keys(topicStats).map(topic => {
+      const { correct, total } = topicStats[topic];
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+      return { topic, accuracy, total };
+    })
+    .filter(t => t.total >= 3)
+    .sort((a, b) => a.accuracy - b.accuracy)
+    .slice(0, 5);
+
+    // Fill up to 5 if needed
+    if (topStruggledTopics.length < 5) {
+      const allOtherTopics = Object.keys(topicStats).map(topic => {
+        const { correct, total } = topicStats[topic];
+        const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+        return { topic, accuracy, total };
+      })
+      .sort((a, b) => a.accuracy - b.accuracy);
+      
+      allOtherTopics.forEach(t => {
+        if (topStruggledTopics.length < 5 && !topStruggledTopics.some(ex => ex.topic === t.topic)) {
+          topStruggledTopics.push(t);
+        }
+      });
+    }
+
+    // Daily quiz activity for the past 30 days
+    const dailyActivity = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const startOfDay = new Date(d);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(d);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const count = await Score.countDocuments({
+        completedAt: { $gte: startOfDay, $lte: endOfDay }
+      });
+
+      const dayLabel = `${startOfDay.getMonth() + 1}/${startOfDay.getDate()}`;
+      dailyActivity.push({ date: dayLabel, count });
+    }
+
+    res.json({
+      totalActiveStudents,
+      totalQuizzesTakenThisWeek,
+      averageScoreAllCourses: avgScore,
+      topCourses,
+      topStruggledTopics,
+      dailyActivity
+    });
+  } catch (err) {
+    console.error('Failed to load admin dashboard:', err);
+    res.status(500).json({ message: 'Server error compiling admin statistics' });
   }
 });
 
