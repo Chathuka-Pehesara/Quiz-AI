@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, ActivityIndicator, Alert, ScrollView, Platform, AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
+import * as Notifications from 'expo-notifications';
 import { api } from '../services/api';
 
 export default function QuizScreen({ route, navigation }) {
@@ -14,7 +17,22 @@ export default function QuizScreen({ route, navigation }) {
   const [responses, setResponses] = useState([]); // Array of { questionId, topic, difficulty, answerGiven, isCorrect }
   const [selectedOption, setSelectedOption] = useState('');
   const [shortAnswer, setShortAnswer] = useState('');
-  const [startTime, setStartTime] = useState(Date.now());
+  
+  // Anti-cheat Telemetry States
+  const [questionTimings, setQuestionTimings] = useState([]); // seconds spent per question
+  const [answerSequence, setAnswerSequence] = useState([]); // answers sequence
+  const [appStateChanges, setAppStateChanges] = useState(0);
+  const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+
+  // Timing Limit States
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState(10);
+  const [timeLeft, setTimeLeft] = useState(null); // remaining seconds
+  const [hasWarned30s, setHasWarned30s] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState(null);
+
+  // Offline Mode States
+  const [isOffline, setIsOffline] = useState(false);
+  const [cachedQuestionsList, setCachedQuestionsList] = useState([]);
 
   // Hints States
   const [hintsUsed, setHintsUsed] = useState([]);
@@ -27,30 +45,278 @@ export default function QuizScreen({ route, navigation }) {
   const [explanationLoading, setExplanationLoading] = useState(false);
   const [tempWrongAnswerInfo, setTempWrongAnswerInfo] = useState(null);
 
+  // 1. AppState Focus Tracking
   useEffect(() => {
-    setStartTime(Date.now());
-    fetchNextQuestion([]);
+    let appChanges = 0;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        appChanges += 1;
+        setAppStateChanges(appChanges);
+        console.log(`[ANTI-CHEAT] App state changed. Count: ${appChanges}`);
+      }
+    });
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
-  const fetchNextQuestion = async (currentResponses) => {
+  // 2. Connectivity Monitor & Sync
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      const connected = !!state.isConnected && !!state.isInternetReachable;
+      setIsOffline(!connected);
+      if (connected) {
+        syncPendingSubmissions();
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const syncPendingSubmissions = async () => {
+    try {
+      const pending = await AsyncStorage.getItem(`pending_submission_${quizId}`);
+      if (pending) {
+        console.log(`[OFFLINE-SYNC] Pending submission found. Syncing...`);
+        const payload = JSON.parse(pending);
+        
+        // Submit score
+        const result = await api.submitQuizScore(
+          quizId,
+          payload.score,
+          payload.totalQuestions,
+          payload.answers,
+          payload.timeTaken,
+          payload.hintsUsed
+        );
+
+        // Submit anti-cheat
+        try {
+          await api.submitAntiCheatTelemetry(
+            quizId,
+            payload.timings,
+            payload.answerSequence,
+            payload.appStateChanges
+          );
+        } catch (acErr) {
+          console.warn('Failed to submit anti-cheat telemetry on sync:', acErr);
+        }
+
+        await AsyncStorage.removeItem(`pending_submission_${quizId}`);
+        await AsyncStorage.removeItem(`quiz_session_${quizId}`);
+
+        Alert.alert('Connection Restored', 'Your offline quiz attempt was successfully submitted and synced!');
+        
+        navigation.replace('Result', {
+          score: payload.score,
+          total: payload.totalQuestions,
+          percentage: Math.round((payload.score / payload.totalQuestions) * 100),
+          quizId,
+          xpEarned: result.xpEarned || 0,
+          totalXp: result.totalXp,
+          level: result.level,
+          levelUp: result.levelUp,
+          streak: result.streak,
+          freezeTokens: result.freezeTokens,
+          streakProtected: result.streakProtected,
+          badgesUnlocked: result.badgesUnlocked || []
+        });
+      }
+    } catch (err) {
+      console.error('Error during offline sync:', err);
+    }
+  };
+
+  // 3. Quiz Session & Offline Cache Initializer
+  useEffect(() => {
+    const initQuiz = async () => {
+      try {
+        const quizData = await api.getQuizDetails(quizId);
+        const limitMinutes = quizData.timeLimit || 10;
+        setTimeLimitMinutes(limitMinutes);
+        setCachedQuestionsList(quizData.questions || []);
+        await AsyncStorage.setItem(`quiz_questions_${quizId}`, JSON.stringify(quizData.questions || []));
+
+        const savedSessionJson = await AsyncStorage.getItem(`quiz_session_${quizId}`);
+        if (savedSessionJson) {
+          const session = JSON.parse(savedSessionJson);
+          const elapsedTime = (Date.now() - session.startTime) / 1000;
+          const duration = limitMinutes * 60;
+          
+          if (elapsedTime >= duration) {
+            Alert.alert('Time Limit Exceeded', 'Your session expired. Submitting your quiz.');
+            handleSubmitQuiz(session.responses, session.startTime, true, session.hintsUsed, session.questionTimings, session.answerSequence, session.appStateChanges);
+            return;
+          } else {
+            setResponses(session.responses || []);
+            setHintsUsed(session.hintsUsed || []);
+            setSessionStartTime(session.startTime);
+            setQuestionTimings(session.questionTimings || []);
+            setAnswerSequence(session.answerSequence || []);
+            setAppStateChanges(session.appStateChanges || 0);
+
+            const remaining = Math.max(0, Math.floor(duration - elapsedTime));
+            setTimeLeft(remaining);
+            setQuestionStartTime(Date.now());
+            fetchNextQuestion(session.responses || [], quizData.questions || []);
+          }
+        } else {
+          const newStartTime = Date.now();
+          setSessionStartTime(newStartTime);
+          setTimeLeft(limitMinutes * 60);
+          
+          const initialSession = {
+            startTime: newStartTime,
+            responses: [],
+            hintsUsed: [],
+            questionTimings: [],
+            answerSequence: [],
+            appStateChanges: 0
+          };
+          await AsyncStorage.setItem(`quiz_session_${quizId}`, JSON.stringify(initialSession));
+          
+          setQuestionStartTime(Date.now());
+          fetchNextQuestion([], quizData.questions || []);
+        }
+      } catch (err) {
+        console.warn('Offline or server error, checking local cache...', err);
+        const localQs = await AsyncStorage.getItem(`quiz_questions_${quizId}`);
+        const savedSessionJson = await AsyncStorage.getItem(`quiz_session_${quizId}`);
+        
+        if (localQs) {
+          const parsedQs = JSON.parse(localQs);
+          setCachedQuestionsList(parsedQs);
+          setIsOffline(true);
+          
+          if (savedSessionJson) {
+            const session = JSON.parse(savedSessionJson);
+            setResponses(session.responses || []);
+            setHintsUsed(session.hintsUsed || []);
+            setSessionStartTime(session.startTime);
+            setQuestionTimings(session.questionTimings || []);
+            setAnswerSequence(session.answerSequence || []);
+            setAppStateChanges(session.appStateChanges || 0);
+             
+            const duration = 10 * 60;
+            const elapsedTime = (Date.now() - session.startTime) / 1000;
+            setTimeLeft(Math.max(0, Math.floor(duration - elapsedTime)));
+            fetchNextQuestion(session.responses, parsedQs);
+          } else {
+            const newStartTime = Date.now();
+            setSessionStartTime(newStartTime);
+            setTimeLeft(10 * 60);
+            setQuestionStartTime(Date.now());
+            fetchNextQuestion([], parsedQs);
+          }
+        } else {
+          Alert.alert('Offline Error', 'Could not load quiz questions.');
+          navigation.goBack();
+        }
+      }
+    };
+
+    initQuiz();
+  }, []);
+
+  // 4. Timer Countdown Ticker
+  useEffect(() => {
+    if (timeLeft === null) return;
+    if (timeLeft <= 0) {
+      Alert.alert('Time Is Up!', 'Submitting your quiz.');
+      handleSubmitQuiz(responses, sessionStartTime, true, hintsUsed, questionTimings, answerSequence, appStateChanges);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        const nextVal = prev - 1;
+        if (nextVal === 30 && !hasWarned30s) {
+          trigger30sWarningNotification();
+        }
+        return nextVal;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeLeft, hasWarned30s, responses, sessionStartTime, hintsUsed, questionTimings, answerSequence, appStateChanges]);
+
+  const trigger30sWarningNotification = async () => {
+    setHasWarned30s(true);
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Quiz Time Warning! ⏳",
+          body: "Only 30 seconds remaining! Submit your answers now.",
+          sound: true,
+        },
+        trigger: null
+      });
+    } catch (err) {
+      console.warn('Failed to schedule 30s notification:', err);
+    }
+    Alert.alert('Time Warning', '⏳ Only 30 seconds remaining!');
+  };
+
+  const fetchNextQuestion = async (currentResponses, loadedQs = cachedQuestionsList) => {
     setLoading(true);
     try {
-      const data = await api.getAdaptiveNextQuestion(quizId, currentResponses);
-      if (data.completed) {
-        // Quiz is finished! Calculate score and submit
-        handleSubmitQuiz(currentResponses);
-      } else {
-        setCurrentQuestion(data.question);
-        setTopicIndex(data.topicIndex);
-        setTotalTopics(data.totalTopics);
+      if (isOffline || loadedQs.length > 0 && cachedQuestionsList.length > 0) {
+        const answeredCount = currentResponses.length;
+        
+        // Group questions by topic
+        const topicMap = {};
+        loadedQs.forEach(q => {
+          if (!q.topic) return;
+          const t = q.topic.trim();
+          if (!topicMap[t]) topicMap[t] = [];
+          topicMap[t].push(q);
+        });
+        
+        const topicsList = Object.keys(topicMap);
+        
+        if (answeredCount >= topicsList.length || answeredCount >= loadedQs.length) {
+          handleSubmitQuiz(currentResponses, sessionStartTime, false, hintsUsed, questionTimings, answerSequence, appStateChanges);
+          return;
+        }
+
+        const nextTopic = topicsList[answeredCount] || Object.keys(topicMap)[0];
+        const topicQuestions = topicMap[nextTopic] || loadedQs;
+        const chosenQuestion = topicQuestions[0] || loadedQs[answeredCount];
+
+        setCurrentQuestion(chosenQuestion);
+        setTopicIndex(answeredCount);
+        setTotalTopics(topicsList.length);
         setSelectedOption('');
         setShortAnswer('');
         setHintText('');
         setHintLoading(false);
+        setQuestionStartTime(Date.now());
+      } else {
+        const data = await api.getAdaptiveNextQuestion(quizId, currentResponses);
+        if (data.completed) {
+          handleSubmitQuiz(currentResponses, sessionStartTime, false, hintsUsed, questionTimings, answerSequence, appStateChanges);
+        } else {
+          setCurrentQuestion(data.question);
+          setTopicIndex(data.topicIndex);
+          setTotalTopics(data.totalTopics);
+          setSelectedOption('');
+          setShortAnswer('');
+          setHintText('');
+          setHintLoading(false);
+          setQuestionStartTime(Date.now());
+        }
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to retrieve next adaptive question');
-      navigation.goBack();
+      console.warn('Fetching next question offline fallback...', err);
+      setIsOffline(true);
+      const localQs = await AsyncStorage.getItem(`quiz_questions_${quizId}`);
+      if (localQs) {
+        const parsedQs = JSON.parse(localQs);
+        setCachedQuestionsList(parsedQs);
+        fetchNextQuestion(currentResponses, parsedQs);
+      } else {
+        Alert.alert('Error', 'Failed to retrieve next question.');
+        navigation.goBack();
+      }
     } finally {
       setLoading(false);
     }
@@ -70,12 +336,10 @@ export default function QuizScreen({ route, navigation }) {
       return;
     }
 
-    // Evaluate answer correctness
     let isCorrect = false;
     if (isMcq || isTf) {
       isCorrect = answerGiven.toLowerCase() === currentQuestion.correctAnswer.toLowerCase();
     } else {
-      // Short answer keyword match helper
       const keywords = currentQuestion.correctAnswer.toLowerCase().split(' ');
       isCorrect = keywords.some(keyword => answerGiven.toLowerCase().includes(keyword));
     }
@@ -91,13 +355,29 @@ export default function QuizScreen({ route, navigation }) {
     const nextResponses = [...responses, currentResponse];
     setResponses(nextResponses);
 
+    const elapsedSeconds = Math.round((Date.now() - questionStartTime) / 1000);
+    const updatedTimings = [...questionTimings, elapsedSeconds];
+    setQuestionTimings(updatedTimings);
+
+    const updatedSequence = [...answerSequence, answerGiven];
+    setAnswerSequence(updatedSequence);
+
+    // Update AsyncStorage session state
+    const updatedSession = {
+      startTime: sessionStartTime,
+      responses: nextResponses,
+      hintsUsed: hintsUsed,
+      questionTimings: updatedTimings,
+      answerSequence: updatedSequence,
+      appStateChanges: appStateChanges
+    };
+    await AsyncStorage.setItem(`quiz_session_${quizId}`, JSON.stringify(updatedSession));
+
     if (isCorrect) {
-      // Correct answer micro-celebration: Fetch next question immediately
       Alert.alert('Correct!', 'Nice job! Processing next question.', [
         { text: 'Continue', onPress: () => fetchNextQuestion(nextResponses) }
       ]);
     } else {
-      // Wrong answer: Request Claude explanation
       setTempWrongAnswerInfo({ nextResponses, currentResponse });
       fetchExplanation(currentQuestion.text, currentQuestion.correctAnswer, answerGiven);
     }
@@ -144,14 +424,39 @@ export default function QuizScreen({ route, navigation }) {
     }
   };
 
-  const handleSubmitQuiz = async (finalResponses) => {
+  const handleSubmitQuiz = async (
+    finalResponses, 
+    sTime = sessionStartTime, 
+    forceSubmit = false, 
+    fHints = hintsUsed,
+    fTimings = questionTimings,
+    fSequence = answerSequence,
+    fAppState = appStateChanges
+  ) => {
     setSubmitting(true);
     try {
       const correctCount = finalResponses.filter(r => r.isCorrect).length;
       const scorePercentage = Math.round((correctCount / finalResponses.length) * 100);
-      const timeTaken = Math.round((Date.now() - startTime) / 1000);
+      const timeTaken = Math.round((Date.now() - (sTime || Date.now())) / 1000);
 
-      // Handle duels challenge or complete
+      if (isOffline) {
+        // Cache submission payload locally for reconnection
+        const pendingSubmission = {
+          score: correctCount,
+          totalQuestions: finalResponses.length,
+          answers: finalResponses,
+          timeTaken,
+          hintsUsed: fHints,
+          timings: fTimings,
+          answerSequence: fSequence,
+          appStateChanges: fAppState
+        };
+        await AsyncStorage.setItem(`pending_submission_${quizId}`, JSON.stringify(pendingSubmission));
+        Alert.alert('Offline Mode', 'Quiz completed! Your score has been saved locally and will auto-submit when connectivity is restored.');
+        navigation.replace('StudentDashboard');
+        return;
+      }
+
       if (route.params?.duelChallenge) {
         try {
           await api.challengePeer(
@@ -176,10 +481,24 @@ export default function QuizScreen({ route, navigation }) {
         finalResponses.length, 
         finalResponses,
         timeTaken,
-        hintsUsed
+        fHints
       );
+
+      // Submit anti-cheat pattern verification
+      try {
+        await api.submitAntiCheatTelemetry(
+          quizId,
+          fTimings,
+          fSequence,
+          fAppState
+        );
+      } catch (acErr) {
+        console.warn('Failed to submit anti-cheat telemetry:', acErr);
+      }
+
+      await AsyncStorage.removeItem(`quiz_session_${quizId}`);
+      await AsyncStorage.removeItem(`quiz_questions_${quizId}`);
       
-      // Navigate to Results page with gamification results
       navigation.replace('Result', {
         score: correctCount,
         total: finalResponses.length,
@@ -195,17 +514,22 @@ export default function QuizScreen({ route, navigation }) {
         badgesUnlocked: result.badgesUnlocked || []
       });
     } catch (err) {
-      Alert.alert('Submission Error', 'Failed to store score history, but you finished! Routing to results.');
+      console.warn('Offline/Network submit failure, saving answers locally...', err);
       const correctCount = finalResponses.filter(r => r.isCorrect).length;
-      const scorePercentage = Math.round((correctCount / finalResponses.length) * 100);
-      navigation.replace('Result', {
+      const timeTaken = Math.round((Date.now() - (sTime || Date.now())) / 1000);
+      const pendingSubmission = {
         score: correctCount,
-        total: finalResponses.length,
-        percentage: scorePercentage,
-        quizId,
-        xpEarned: 0,
-        badgesUnlocked: []
-      });
+        totalQuestions: finalResponses.length,
+        answers: finalResponses,
+        timeTaken,
+        hintsUsed: fHints,
+        timings: fTimings,
+        answerSequence: fSequence,
+        appStateChanges: fAppState
+      };
+      await AsyncStorage.setItem(`pending_submission_${quizId}`, JSON.stringify(pendingSubmission));
+      Alert.alert('Submission Error', 'Failed to store score history, but your progress has been cached locally. It will auto-sync on reconnect.');
+      navigation.replace('StudentDashboard');
     } finally {
       setSubmitting(false);
     }
@@ -224,17 +548,33 @@ export default function QuizScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
-      {/* Progress Header */}
-      <View style={styles.header}>
-        <Text style={styles.progressText}>Topic {topicIndex + 1} of {totalTopics}</Text>
-        <View style={styles.progressBarBg}>
-          <View 
-            style={[
-              styles.progressBarFill, 
-              { width: `${((topicIndex + 1) / totalTopics) * 100}%` }
-            ]} 
-          />
+      {/* Offline Status Banner */}
+      {isOffline && (
+        <View style={{ backgroundColor: '#B91C1C', padding: 10, borderRadius: 10, marginBottom: 16, alignItems: 'center' }}>
+          <Text style={{ color: '#FEE2E2', fontSize: 13, fontWeight: 'bold' }}>⚠️ Offline Mode Active. Progress is saved locally.</Text>
         </View>
+      )}
+
+      {/* Progress & Countdown Header */}
+      <View style={[styles.header, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }]}>
+        <View style={{ flex: 1, marginRight: 20 }}>
+          <Text style={styles.progressText}>Topic {topicIndex + 1} of {totalTopics}</Text>
+          <View style={styles.progressBarBg}>
+            <View 
+              style={[
+                styles.progressBarFill, 
+                { width: `${((topicIndex + 1) / totalTopics) * 100}%` }
+              ]} 
+            />
+          </View>
+        </View>
+        {timeLeft !== null && (
+          <View style={{ backgroundColor: '#1E293B', borderWidth: 1, borderColor: timeLeft < 60 ? '#EF4444' : '#334155', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10 }}>
+            <Text style={{ color: timeLeft < 60 ? '#EF4444' : '#F8FAFC', fontWeight: 'bold', fontSize: 13 }}>
+              ⏱️ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Question Card */}

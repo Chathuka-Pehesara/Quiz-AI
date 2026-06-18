@@ -15,13 +15,28 @@ import {
 import { useIsFocused } from '@react-navigation/native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { api } from '../services/api';
-import { clearAuth } from '../utils/storage';
+import { clearAuth, getRoleFromToken } from '../utils/storage';
 import { scheduleSmartReminders } from '../utils/notifications';
 import { getSocket, connectSocket } from '../services/socket';
 
 export default function StudentDashboard({ navigation }) {
   const isFocused = useIsFocused();
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  
+  useEffect(() => {
+    const checkRole = async () => {
+      const role = await getRoleFromToken();
+      if (!role) {
+        Alert.alert('Access Denied', 'Please log in to continue.');
+        navigation.replace('Login');
+      } else {
+        setUserRole(role);
+      }
+    };
+    checkRole();
+  }, []);
+
   const [dashboardData, setDashboardData] = useState(null);
 
   const [enrollCode, setEnrollCode] = useState('');
@@ -315,9 +330,27 @@ export default function StudentDashboard({ navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {userRole === 'admin' && (
+              <TouchableOpacity 
+                style={[styles.logoutBtn, { borderColor: '#A855F7', marginRight: 8 }]} 
+                onPress={() => navigation.navigate('AdminDashboard')}
+              >
+                <Text style={{ color: '#A855F7', fontWeight: '700', fontSize: 11 }}>Admin</Text>
+              </TouchableOpacity>
+            )}
+            {(userRole === 'professor' || userRole === 'admin') && (
+              <TouchableOpacity 
+                style={[styles.logoutBtn, { borderColor: '#F59E0B', marginRight: 8 }]} 
+                onPress={() => navigation.navigate('ProfessorDashboard')}
+              >
+                <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 11 }}>Prof Console</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Level & XP Progress Card */}

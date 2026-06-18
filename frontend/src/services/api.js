@@ -9,8 +9,8 @@ const getMetroHost = () => {
     if (scriptURL) {
       // e.g. "http://10.188.179.4:8081/index.bundle?platform=android..."
       const host = scriptURL.split('://')[1]?.split('/')[0]?.split(':')[0];
-      // Check if it looks like a local network IP address
-      if (host && (host.startsWith('192.') || host.startsWith('10.') || host.startsWith('172.'))) {
+      // Check if it looks like a local network IP address, and ignore stale IP
+      if (host && host !== '10.188.179.4' && (host.startsWith('192.') || host.startsWith('10.') || host.startsWith('172.'))) {
         return host;
       }
     }
@@ -20,7 +20,7 @@ const getMetroHost = () => {
   return null;
 };
 
-const hostIP = getMetroHost() || '10.188.179.4'; // Fallback to your host's local Wi-Fi IP address
+const hostIP = getMetroHost() || '10.223.99.4'; // Fallback to your host's local Wi-Fi IP address
 
 const BASE_URL = Platform.OS === 'web'
   ? 'http://localhost:5000/api'
@@ -103,14 +103,14 @@ export const api = {
     request('/courses/enroll', { method: 'POST', body: { code } }),
 
   // Quizzes
-  generateQuiz: (title, courseId, textInput, numQuestions) => 
-    request('/quizzes/generate', { method: 'POST', body: { title, courseId, textInput, numQuestions } }),
+  generateQuiz: (title, courseId, textInput, numQuestions, timeLimit) => 
+    request('/quizzes/generate', { method: 'POST', body: { title, courseId, textInput, numQuestions, timeLimit } }),
   
   getQuizDetails: (quizId) => 
     request(`/quizzes/${quizId}`, { method: 'GET' }),
   
-  updateQuiz: (quizId, title, questions) => 
-    request(`/quizzes/${quizId}`, { method: 'PUT', body: { title, questions } }),
+  updateQuiz: (quizId, title, questions, timeLimit) => 
+    request(`/quizzes/${quizId}`, { method: 'PUT', body: { title, questions, timeLimit } }),
   
   publishQuiz: (quizId) => 
     request(`/quizzes/${quizId}/publish`, { method: 'PATCH' }),
@@ -120,6 +120,9 @@ export const api = {
   
   submitQuizScore: (quizId, score, totalQuestions, answers, timeTaken, hintsUsed) => 
     request(`/quizzes/${quizId}/submit`, { method: 'POST', body: { score, totalQuestions, answers, timeTaken, hintsUsed } }),
+  
+  submitAntiCheatTelemetry: (quizId, timings, answerSequence, appStateChanges) =>
+    request(`/quizzes/${quizId}/anti-cheat`, { method: 'POST', body: { timings, answerSequence, appStateChanges } }),
   
   getAdaptiveNextQuestion: (quizId, answers) => 
     request(`/quizzes/${quizId}/adaptive-next`, { method: 'POST', body: { answers } }),

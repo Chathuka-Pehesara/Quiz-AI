@@ -2,11 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { api } from '../services/api';
-import { clearAuth, getUser } from '../utils/storage';
+import { clearAuth, getUser, getRoleFromToken } from '../utils/storage';
 
 export default function ProfessorDashboard({ navigation }) {
   const isFocused = useIsFocused();
   const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    const checkRole = async () => {
+      const role = await getRoleFromToken();
+      if (role !== 'professor' && role !== 'admin') {
+        Alert.alert('Access Denied', 'You do not have permission to access the Professor Console.');
+        navigation.replace('StudentDashboard');
+      }
+    };
+    checkRole();
+  }, []);
   const [courses, setCourses] = useState([]);
   
   // Create Course State
@@ -18,6 +29,7 @@ export default function ProfessorDashboard({ navigation }) {
   const [quizTitle, setQuizTitle] = useState('');
   const [lectureNotes, setLectureNotes] = useState('');
   const [questionCount, setQuestionCount] = useState('5');
+  const [timeLimit, setTimeLimit] = useState('10');
   
   // Created Quizzes State
   const [courseQuizzes, setCourseQuizzes] = useState([]);
@@ -118,7 +130,8 @@ export default function ProfessorDashboard({ navigation }) {
     setGenerationLoading(true);
     try {
       const count = parseInt(questionCount) || 5;
-      const quiz = await api.generateQuiz(quizTitle.trim(), selectedCourse._id, lectureNotes, count);
+      const limit = parseInt(timeLimit) || 10;
+      const quiz = await api.generateQuiz(quizTitle.trim(), selectedCourse._id, lectureNotes, count, limit);
       Alert.alert(
         'Success', 
         `Successfully generated quiz with ${quiz.questions.length} questions! Let's review the questions.`,
@@ -274,6 +287,19 @@ export default function ProfessorDashboard({ navigation }) {
                 maxLength={2}
                 value={questionCount}
                 onChangeText={setQuestionCount}
+              />
+            </View>
+
+            <View style={[styles.row, { marginTop: 10 }]}>
+              <View style={{ flex: 1, justifyContent: 'center' }}>
+                <Text style={{ color: '#94A3B8', fontSize: 13 }}>Time limit (minutes):</Text>
+              </View>
+              <TextInput
+                style={[styles.input, { width: 60, textAlign: 'center', marginBottom: 0 }]}
+                keyboardType="numeric"
+                maxLength={3}
+                value={timeLimit}
+                onChangeText={setTimeLimit}
               />
             </View>
 

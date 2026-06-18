@@ -1,12 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { api } from '../services/api';
 import { storeToken, storeUser } from '../utils/storage';
+import * as LocalAuthentication from 'expo-local-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [biometricsSupported, setBiometricsSupported] = useState(false);
+  const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      setBiometricsSupported(hasHardware && isEnrolled);
+
+      const isEnabled = await AsyncStorage.getItem('biometrics_enabled');
+      setBiometricsEnabled(isEnabled === 'true');
+
+      // Auto-trigger biometrics if enabled
+      if (hasHardware && isEnrolled && isEnabled === 'true') {
+        setTimeout(() => {
+          handleBiometricLogin();
+        }, 300);
+      }
+    };
+    checkBiometrics();
+  }, []);
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authenticate with FaceID / TouchID',
+        fallbackLabel: 'Use password'
+      });
+
+      if (result.success) {
+        const storedToken = await AsyncStorage.getItem('auth_token');
+        const storedUserJson = await AsyncStorage.getItem('auth_user');
+        
+        if (storedToken && storedUserJson) {
+          const user = JSON.parse(storedUserJson);
+          Alert.alert('Success', `Welcome back, ${user.name}! (Biometric authenticated)`);
+          
+          if (user.role === 'admin') {
+            navigation.replace('AdminDashboard');
+          } else if (user.role === 'professor') {
+            navigation.replace('ProfessorDashboard');
+          } else {
+            navigation.replace('StudentDashboard');
+          }
+        } else {
+          Alert.alert('Login Required', 'Please sign in with password first to register biometric login.');
+        }
+      }
+    } catch (err) {
+      console.error('Biometric auth error', err);
+      Alert.alert('Biometric Error', 'Authentication failed');
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -22,17 +78,47 @@ export default function LoginScreen({ navigation }) {
       
       Alert.alert('Success', `Welcome back, ${data.user.name}!`);
       
-      if (data.user.role === 'admin') {
-        navigation.replace('AdminDashboard');
-      } else if (data.user.role === 'professor') {
-        navigation.replace('ProfessorDashboard');
+      if (biometricsSupported && !biometricsEnabled) {
+        Alert.alert(
+          'Enable Biometrics',
+          'Would you like to enable fingerprint or face unlock for faster log in?',
+          [
+            { 
+              text: 'Cancel', 
+              style: 'cancel',
+              onPress: () => navigateAfterLogin(data.user)
+            },
+            { 
+              text: 'Yes, Enable', 
+              onPress: async () => {
+                const authResult = await LocalAuthentication.authenticateAsync({ promptMessage: 'Verify your biometrics' });
+                if (authResult.success) {
+                  await AsyncStorage.setItem('biometrics_enabled', 'true');
+                  setBiometricsEnabled(true);
+                  Alert.alert('Enabled', 'Biometric logins registered successfully for this device.');
+                }
+                navigateAfterLogin(data.user);
+              } 
+            }
+          ]
+        );
       } else {
-        navigation.replace('StudentDashboard');
+        navigateAfterLogin(data.user);
       }
     } catch (err) {
       Alert.alert('Login Failed', err.message || 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const navigateAfterLogin = (user) => {
+    if (user.role === 'admin') {
+      navigation.replace('AdminDashboard');
+    } else if (user.role === 'professor') {
+      navigation.replace('ProfessorDashboard');
+    } else {
+      navigation.replace('StudentDashboard');
     }
   };
 
@@ -66,18 +152,29 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity 
-          activeOpacity={0.8} 
-          style={styles.button}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+          <TouchableOpacity 
+            activeOpacity={0.8} 
+            style={[styles.button, { flex: 1, marginTop: 0 }]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.buttonText}>Sign In</Text>
+            )}
+          </TouchableOpacity>
+          {biometricsSupported && (
+            <TouchableOpacity 
+              activeOpacity={0.8} 
+              style={[styles.button, { width: 50, backgroundColor: '#334155', marginTop: 0, justifyContent: 'center', alignItems: 'center' }]}
+              onPress={handleBiometricLogin}
+            >
+              <Text style={{ fontSize: 20 }}>👤</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+        </View>
 
         <TouchableOpacity 
           style={styles.registerLink}

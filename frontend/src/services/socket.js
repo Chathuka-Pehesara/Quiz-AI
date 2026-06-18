@@ -9,8 +9,8 @@ const getMetroHost = () => {
     if (scriptURL) {
       // e.g. "http://10.188.179.4:8081/index.bundle?platform=android..."
       const host = scriptURL.split('://')[1]?.split('/')[0]?.split(':')[0];
-      // Check if it looks like a local network IP address
-      if (host && (host.startsWith('192.') || host.startsWith('10.') || host.startsWith('172.'))) {
+      // Check if it looks like a local network IP address, and ignore stale IP
+      if (host && host !== '10.188.179.4' && (host.startsWith('192.') || host.startsWith('10.') || host.startsWith('172.'))) {
         return host;
       }
     }
@@ -20,7 +20,7 @@ const getMetroHost = () => {
   return null;
 };
 
-const hostIP = getMetroHost() || '10.188.179.4'; // Fallback to your host's local Wi-Fi IP address
+const hostIP = getMetroHost() || '10.223.99.4'; // Fallback to your host's local Wi-Fi IP address
 
 // Dynamic socket URL routing based on platform
 const SOCKET_URL = Platform.OS === 'web'

@@ -78,3 +78,38 @@ export const getOnboardingRole = async () => {
     return null;
   }
 };
+
+const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const base64Decode = (input) => {
+  let str = input.replace(/=+$/, '').replace(/-/g, '+').replace(/_/g, '/');
+  let output = '';
+  if (str.length % 4 === 1) {
+    throw new Error('Invalid base64');
+  }
+  for (let bc = 0, bs = 0, buffer, idx = 0; idx < str.length; idx++) {
+    const char = str.charAt(idx);
+    const parent = base64Chars.indexOf(char);
+    if (parent === -1) continue;
+    buffer = bc % 4 ? (buffer << 6) + parent : parent;
+    if (bc++ % 4) {
+      output += String.fromCharCode(255 & (buffer >> ((-2 * bc) & 6)));
+    }
+  }
+  return output;
+};
+
+export const getRoleFromToken = async () => {
+  try {
+    const token = await AsyncStorage.getItem('auth_token');
+    if (!token) return null;
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1];
+    const raw = base64Decode(payload);
+    const decoded = JSON.parse(raw);
+    return decoded.role || null;
+  } catch (e) {
+    console.error('Failed to decode role from token', e);
+    return null;
+  }
+};

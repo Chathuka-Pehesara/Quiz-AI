@@ -6,6 +6,7 @@ export default function CreateQuizScreen({ route, navigation }) {
   const { quizId } = route.params;
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [timeLimit, setTimeLimit] = useState('10');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -19,6 +20,7 @@ export default function CreateQuizScreen({ route, navigation }) {
       const data = await api.getQuizDetails(quizId);
       setQuiz(data);
       setQuestions(data.questions || []);
+      setTimeLimit(data.timeLimit ? String(data.timeLimit) : '10');
     } catch (err) {
       Alert.alert('Error', 'Failed to load quiz details');
       navigation.goBack();
@@ -42,8 +44,9 @@ export default function CreateQuizScreen({ route, navigation }) {
   const handleSaveAndPublish = async () => {
     setSaving(true);
     try {
+      const limit = parseInt(timeLimit) || 10;
       // Save changes
-      await api.updateQuiz(quizId, quiz.title, questions);
+      await api.updateQuiz(quizId, quiz.title, questions, limit);
       // Publish
       await api.publishQuiz(quizId);
       Alert.alert('Success', 'Quiz published and live for students!');
@@ -70,6 +73,17 @@ export default function CreateQuizScreen({ route, navigation }) {
     <View style={styles.container}>
       <Text style={styles.header}>Review Generated Quiz</Text>
       <Text style={styles.subHeader}>{quiz?.title}</Text>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700' }}>QUIZ DURATION (MINUTES):</Text>
+        <TextInput
+          style={[styles.input, { width: 60, height: 32, marginBottom: 0, textAlign: 'center', backgroundColor: '#0F172A', color: '#FFF' }]}
+          keyboardType="numeric"
+          maxLength={3}
+          value={timeLimit}
+          onChangeText={setTimeLimit}
+        />
+      </View>
 
       <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 100 }}>
         {questions.map((q, qIdx) => (

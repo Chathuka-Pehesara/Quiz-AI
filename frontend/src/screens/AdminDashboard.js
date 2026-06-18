@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { api } from '../services/api';
-import { clearAuth } from '../utils/storage';
+import { clearAuth, getRoleFromToken } from '../utils/storage';
 import { useTheme } from '../context/ThemeContext';
 
 export default function AdminDashboard({ navigation }) {
@@ -22,6 +22,21 @@ export default function AdminDashboard({ navigation }) {
   const isFocused = useIsFocused();
   const [isLargeScreen, setIsLargeScreen] = useState(Dimensions.get('window').width > 768);
   const [activeTab, setActiveTab] = useState('overview'); // overview, quizzes, users, courses, ai, settings
+
+  useEffect(() => {
+    const checkRole = async () => {
+      const role = await getRoleFromToken();
+      if (role !== 'admin') {
+        Alert.alert('Access Denied', 'You do not have permission to access the Admin Console.');
+        if (role === 'professor') {
+          navigation.replace('ProfessorDashboard');
+        } else {
+          navigation.replace('StudentDashboard');
+        }
+      }
+    };
+    checkRole();
+  }, []);
 
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
