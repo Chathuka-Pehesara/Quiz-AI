@@ -1,9 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 const AnalyticsChart = ({ data }) => {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   if (!data || data.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -19,9 +23,9 @@ const AnalyticsChart = ({ data }) => {
   const weakest = sortedData[sortedData.length - 1];
 
   const getStatusColor = (acc) => {
-    if (acc < 50) return '#EF4444'; // Red
-    if (acc < 80) return '#F59E0B'; // Amber
-    return '#10B981'; // Green
+    if (acc < 50) return colors.coral;
+    if (acc < 80) return colors.amber;
+    return colors.teal;
   };
 
   const getStatusLabel = (acc) => {
@@ -37,17 +41,17 @@ const AnalyticsChart = ({ data }) => {
       {/* Summary Badges */}
       <View style={styles.summaryRow}>
         {strongest && (
-          <View style={[styles.summaryCard, { borderColor: '#10B981' }]}>
+          <View style={[styles.summaryCard, { borderColor: colors.teal }]}>
             <Text style={styles.summaryLabel}>Strongest Topic</Text>
             <Text style={styles.summaryValue} numberOfLines={1}>{strongest.topic}</Text>
-            <Text style={[styles.summaryAccuracy, { color: '#10B981' }]}>{strongest.accuracy}% Mastery</Text>
+            <Text style={[styles.summaryAccuracy, { color: colors.teal }]}>{strongest.accuracy}% Mastery</Text>
           </View>
         )}
         {weakest && weakest.topic !== strongest.topic && (
-          <View style={[styles.summaryCard, { borderColor: '#EF4444' }]}>
+          <View style={[styles.summaryCard, { borderColor: colors.coral }]}>
             <Text style={styles.summaryLabel}>Needs Review</Text>
             <Text style={styles.summaryValue} numberOfLines={1}>{weakest.topic}</Text>
-            <Text style={[styles.summaryAccuracy, { color: '#EF4444' }]}>{weakest.accuracy}% Accuracy</Text>
+            <Text style={[styles.summaryAccuracy, { color: colors.coral }]}>{weakest.accuracy}% Accuracy</Text>
           </View>
         )}
       </View>
@@ -88,17 +92,17 @@ const AnalyticsChart = ({ data }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 18,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 16,
@@ -112,27 +116,27 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1.5,
   },
   summaryLabel: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 11,
     textTransform: 'uppercase',
     fontWeight: '600',
     marginBottom: 4,
   },
   summaryValue: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
   summaryAccuracy: {
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 2,
+    marginTransition: 2,
   },
   chartContainer: {
     marginTop: 8,
@@ -146,7 +150,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   topicName: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -156,7 +160,7 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     height: 10,
-    backgroundColor: '#334155',
+    backgroundColor: colors.border,
     borderRadius: 5,
     overflow: 'hidden',
   },
@@ -165,30 +169,30 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   statusLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 10,
     marginTop: 4,
     fontWeight: '500',
     textAlign: 'right',
   },
   emptyContainer: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 30,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
     marginVertical: 12,
   },
   emptyText: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 6,
   },
   emptySubtext: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
   },
