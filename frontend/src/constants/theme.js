@@ -1,23 +1,23 @@
 export const COLORS = {
-  // Theme brand colors
-  primary: '#534AB7', // primary purple
-  teal: '#1D9E75',
-  coral: '#D85A30',
-  amber: '#EF9F27',
+  // Premium brand colors
+  primary: '#6366F1', // Royal Indigo
+  teal: '#10B981',    // Emerald Success
+  coral: '#F43F5E',   // Rose Red Error
+  amber: '#F59E0B',   // Warm Amber Streak
 
-  // Dark theme colors
-  darkBackground: '#0F1117',
-  darkCard: '#1A1D27',
-  darkText: '#F8FAFC',
-  darkTextMuted: '#94A3B8',
-  darkBorder: '#334155',
+  // Dark theme colors (Enterprise Obsidian Slate)
+  darkBackground: '#090D16', // Slate midnight
+  darkCard: '#151B2C',       // Deep navy-slate elevated card
+  darkText: '#F8FAFC',       // Clean off-white
+  darkTextMuted: '#94A3B8',  // Cool gray
+  darkBorder: '#22293F',     // Crisp dark border
 
-  // Light theme colors
-  lightBackground: '#F8FAFC',
-  lightCard: '#FFFFFF',
-  lightText: '#0F172A',
-  lightTextMuted: '#64748B',
-  lightBorder: '#E2E8F0',
+  // Light theme colors (Sleek Clean Light)
+  lightBackground: '#F8FAFC', // Slate soft gray
+  lightCard: '#FFFFFF',       // Pure white card
+  lightText: '#0F172A',       // Midnight slate
+  lightTextMuted: '#64748B',  // Charcoal muted
+  lightBorder: '#E2E8F0',     // Light platinum border
 
   // System/utility colors
   white: '#FFFFFF',
