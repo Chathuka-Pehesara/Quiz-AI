@@ -136,7 +136,7 @@ const getStyles = (colors) => StyleSheet.create({
   summaryAccuracy: {
     fontSize: 12,
     fontWeight: '600',
-    marginTransition: 2,
+    marginTop: 2,
   },
   chartContainer: {
     marginTop: 8,

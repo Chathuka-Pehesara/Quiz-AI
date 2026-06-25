@@ -34,6 +34,10 @@ export default function StudentDashboard({ navigation }) {
       if (!role) {
         Alert.alert('Access Denied', 'Please log in to continue.');
         navigation.replace('Login');
+      } else if (role === 'admin') {
+        navigation.replace('AdminDashboard');
+      } else if (role === 'professor') {
+        navigation.replace('ProfessorDashboard');
       } else {
         setUserRole(role);
       }

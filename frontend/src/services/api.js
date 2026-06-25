@@ -20,7 +20,7 @@ const getMetroHost = () => {
   return null;
 };
 
-const hostIP = getMetroHost() || '10.223.99.4'; // Fallback to your host's local Wi-Fi IP address
+const hostIP = getMetroHost() || '10.158.244.4'; // Fallback to your host's local Wi-Fi IP address
 
 const BASE_URL = Platform.OS === 'web'
   ? 'http://localhost:5000/api'
