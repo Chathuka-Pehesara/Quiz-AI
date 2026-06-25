@@ -1,3 +1,4 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Share, Alert, Platform, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
@@ -8,6 +9,8 @@ import { api } from '../services/api';
 const { width } = Dimensions.get('window');
 
 export default function ResultScreen({ route, navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const { 
     score, 
     total, 
@@ -222,10 +225,10 @@ export default function ResultScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
@@ -234,16 +237,16 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 24,
     fontWeight: '800',
   },
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 30,
     alignItems: 'center',
-    borderColor: '#334155',
+    borderColor: colors.border,
     borderWidth: 1.5,
     elevation: 4,
   },
@@ -252,7 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   scoreText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 16,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -263,25 +266,25 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginVertical: 10,
   },
-  highScore: { color: '#10B981' },
-  medScore: { color: '#F59E0B' },
-  lowScore: { color: '#EF4444' },
+  highScore: { color: colors.teal },
+  medScore: { color: colors.amber },
+  lowScore: { color: colors.coral },
   description: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
   },
   easterEggHintBox: {
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     padding: 10,
     borderRadius: 8,
     marginTop: 20,
-    borderColor: '#334155',
+    borderColor: colors.border,
     borderWidth: 1,
   },
   easterEggHintText: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
@@ -290,14 +293,14 @@ const styles = StyleSheet.create({
     marginTop: 30,
   },
   homeBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     height: 48,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   homeBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -309,28 +312,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   xpPill: {
-    backgroundColor: '#10B981' + '20',
-    borderColor: '#10B981',
+    backgroundColor: colors.teal + '20',
+    borderColor: colors.teal,
     borderWidth: 1,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 20,
   },
   xpPillText: {
-    color: '#10B981',
+    color: colors.teal,
     fontSize: 12,
     fontWeight: '800',
   },
   streakPill: {
-    backgroundColor: '#EA580C' + '20',
-    borderColor: '#EA580C',
+    backgroundColor: colors.amber + '20',
+    borderColor: colors.amber,
     borderWidth: 1,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 20,
   },
   streakPillText: {
-    color: '#EA580C',
+    color: colors.amber,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -357,20 +360,20 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#1E293B',
-    borderColor: '#F59E0B',
+    backgroundColor: colors.card,
+    borderColor: colors.amber,
     borderWidth: 2,
     borderRadius: 20,
     padding: 24,
     width: width - 48,
     alignItems: 'center',
     elevation: 24,
-    shadowColor: '#F59E0B',
+    shadowColor: colors.amber,
     shadowOpacity: 0.3,
     shadowRadius: 15,
   },
   unlockedTitle: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1,
@@ -381,32 +384,32 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#334155',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#F59E0B',
+    borderColor: colors.amber,
   },
   badgeIcon: {
     fontSize: 48,
   },
   badgeName: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 6,
     textAlign: 'center',
   },
   badgeDesc: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 24,
   },
   badgeCloseBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.amber,
     borderRadius: 12,
     height: 48,
     width: '100%',
@@ -414,17 +417,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeCloseBtnText: {
-    color: '#1E293B',
+    color: colors.card,
     fontSize: 14,
     fontWeight: '800',
   },
   viewShotCard: {
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     borderRadius: 16,
     overflow: 'hidden',
   },
   shareBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
     height: 48,
     borderRadius: 10,
     justifyContent: 'center',
@@ -432,7 +435,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   shareBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { api } from '../services/api';
 import { storeToken, storeUser } from '../utils/storage';
+import { useTheme } from '../context/ThemeContext';
 
 export default function RegisterScreen({ navigation }) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,7 +51,7 @@ export default function RegisterScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="Professor Jane Doe or Student Alex"
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.textMuted}
           value={name}
           onChangeText={setName}
         />
@@ -57,7 +60,7 @@ export default function RegisterScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="name@university.edu"
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.textMuted}
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
@@ -68,7 +71,7 @@ export default function RegisterScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="••••••••••••"
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.textMuted}
           secureTextEntry
           autoCapitalize="none"
           value={password}
@@ -110,7 +113,7 @@ export default function RegisterScreen({ navigation }) {
           onPress={() => navigation.navigate('Login')}
         >
           <Text style={styles.registerLinkText}>
-            Already have an account? <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Sign In</Text>
+            Already have an account? <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Sign In</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -118,10 +121,10 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
@@ -130,26 +133,26 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 34,
     fontWeight: '900',
   },
   subtitle: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 4,
     textAlign: 'center',
   },
   form: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
     elevation: 4,
   },
   label: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -157,15 +160,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     borderRadius: 10,
     height: 46,
-    color: '#F8FAFC',
+    color: colors.text,
     paddingHorizontal: 16,
     marginBottom: 16,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   roleContainer: {
     flexDirection: 'row',
@@ -177,17 +180,17 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
   },
   roleActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   roleText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -195,7 +198,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     height: 48,
     borderRadius: 10,
     justifyContent: 'center',
@@ -203,7 +206,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#2563EB',
+        shadowColor: colors.primary,
         shadowOpacity: 0.3,
         shadowRadius: 10,
       },
@@ -222,7 +225,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   registerLinkText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
   },
 });

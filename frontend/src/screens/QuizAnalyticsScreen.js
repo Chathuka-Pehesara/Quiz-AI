@@ -1,9 +1,12 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { VictoryBar, VictoryChart, VictoryTheme, VictoryAxis, VictoryGroup, VictoryLegend } from 'victory-native';
 import { api } from '../services/api';
 
 export default function QuizAnalyticsScreen({ route, navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const { quizId } = route.params;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +103,7 @@ export default function QuizAnalyticsScreen({ route, navigation }) {
                 tickFormat={x => x}
                 style={{
                   tickLabels: { fill: '#94A3B8', fontSize: 10, fontWeight: 'bold' },
-                  axis: { stroke: '#334155' },
+                  axis: { stroke: colors.border },
                   grid: { stroke: 'transparent' }
                 }}
               />
@@ -108,11 +111,11 @@ export default function QuizAnalyticsScreen({ route, navigation }) {
                 dependentAxis
                 style={{
                   tickLabels: { fill: '#94A3B8', fontSize: 10 },
-                  axis: { stroke: '#334155' },
-                  grid: { stroke: '#334155', strokeDasharray: '4, 4' }
+                  axis: { stroke: colors.border },
+                  grid: { stroke: colors.border, strokeDasharray: '4, 4' }
                 }}
               />
-              <VictoryGroup offset={12} colorScale={['#10B981', '#EF4444']}>
+              <VictoryGroup offset={12} colorScale={[colors.teal, colors.coral]}>
                 <VictoryBar
                   data={correctData}
                   barWidth={10}
@@ -129,11 +132,11 @@ export default function QuizAnalyticsScreen({ route, navigation }) {
             {/* Custom Legend */}
             <View style={styles.legendContainer}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendIndicator, { backgroundColor: '#10B981' }]} />
+                <View style={[styles.legendIndicator, { backgroundColor: colors.teal }]} />
                 <Text style={styles.legendLabel}>Correct</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendIndicator, { backgroundColor: '#EF4444' }]} />
+                <View style={[styles.legendIndicator, { backgroundColor: colors.coral }]} />
                 <Text style={styles.legendLabel}>Incorrect</Text>
               </View>
             </View>
@@ -189,27 +192,27 @@ export default function QuizAnalyticsScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingTop: 40,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   loadingText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 14,
     marginTop: 12,
   },
   errorText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 14,
     marginBottom: 20,
     textAlign: 'center',
@@ -225,71 +228,71 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
     position: 'absolute',
     left: 0,
     zIndex: 10,
   },
   backBtnTextHeader: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
   title: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
     flex: 1,
   },
   backBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
   },
   backBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
   quizCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   quizLabel: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 6,
   },
   quizTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 18,
     fontWeight: '850',
     marginBottom: 4,
   },
   quizSub: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 12,
   },
   chartCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   chartTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 10,
@@ -311,23 +314,23 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   legendLabel: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   sectionTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 12,
   },
   questionBox: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   questionHeader: {
     flexDirection: 'row',
@@ -336,13 +339,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   questionIndex: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
     fontWeight: '700',
   },
   accuracyPill: {
     backgroundColor: '#1E3A8A' + '40',
-    borderColor: '#3B82F6' + '60',
+    borderColor: colors.primary + '60',
     borderWidth: 1,
     paddingVertical: 2,
     paddingHorizontal: 8,
@@ -354,13 +357,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   questionText: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 14,
     lineHeight: 20,
   },
   divider: {
     height: 1,
-    backgroundColor: '#334155',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
   telemetryRow: {
@@ -369,18 +372,18 @@ const styles = StyleSheet.create({
   },
   telemetryItem: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 8,
     alignItems: 'center',
   },
   telemetryVal: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '800',
   },
   telemetryLbl: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 9,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -388,8 +391,8 @@ const styles = StyleSheet.create({
   },
   wrongAnswerCard: {
     marginTop: 12,
-    backgroundColor: '#EF4444' + '10',
-    borderColor: '#EF4444' + '30',
+    backgroundColor: colors.coral + '10',
+    borderColor: colors.coral + '30',
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
@@ -400,12 +403,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   wrongAnswerText: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 12,
     marginTop: 2,
   },
   emptyChartText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     textAlign: 'center',
     marginVertical: 20,

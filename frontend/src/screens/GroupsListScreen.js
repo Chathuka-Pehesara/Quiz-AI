@@ -1,3 +1,4 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -15,6 +16,8 @@ import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
 import { api } from '../services/api';
 
 export default function GroupsListScreen({ navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -188,21 +191,21 @@ export default function GroupsListScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
   },
   loadingText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
   },
   header: {
@@ -217,18 +220,18 @@ const styles = StyleSheet.create({
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   backBtnText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15.5,
     fontWeight: '800',
   },
@@ -241,12 +244,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   subtitle: {
-    color: '#A1A1AA',
+    color: colors.textMuted,
     fontSize: 13.5,
     lineHeight: 20,
   },
   createBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     borderRadius: 10,
     justifyContent: 'center',
@@ -256,17 +259,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   createBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13.5,
     fontWeight: '800',
   },
   groupCard: {
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   groupCardHeader: {
     flexDirection: 'row',
@@ -292,12 +295,12 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   groupName: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '800',
   },
   groupCreator: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11.5,
   },
   groupCardFooter: {
@@ -305,11 +308,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#262629',
+    borderTopColor: colors.border,
     paddingTop: 12,
   },
   memberCountText: {
-    color: '#A1A1AA',
+    color: colors.textMuted,
     fontSize: 12.5,
     fontWeight: '600',
   },
@@ -328,13 +331,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   emptyTitle: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 15.5,
     fontWeight: '800',
     marginBottom: 6,
   },
   emptyText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 19,
@@ -346,29 +349,29 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
     gap: 14,
   },
   modalTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 17,
     fontWeight: '800',
   },
   modalDescription: {
-    color: '#A1A1AA',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 18,
   },
   textInput: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
     borderRadius: 8,
-    color: '#FFFFFF',
+    color: colors.white,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
@@ -380,20 +383,20 @@ const styles = StyleSheet.create({
   },
   modalCancelBtn: {
     flex: 1,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     paddingVertical: 11,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalCancelText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
   modalCreateBtn: {
     flex: 1,
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     paddingVertical: 11,
     borderRadius: 8,
     justifyContent: 'center',
@@ -403,7 +406,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1A2E',
   },
   modalCreateText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13.5,
     fontWeight: '700',
   },

@@ -1,9 +1,12 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Modal, FlatList, Alert } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay } from 'react-native-reanimated';
 import { getSocket, disconnectSocket } from '../services/socket';
 
 export default function BattleScreen({ route, navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const { roomCode, initialQuestion, initialIndex, totalQuestions, user } = route.params;
 
   const goldHeight = useSharedValue(0);
@@ -314,7 +317,7 @@ export default function BattleScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Round Summary</Text>
-            <Text style={styles.correctLabel}>Correct Answer: <Text style={{ color: '#10B981' }}>{correctAnswer}</Text></Text>
+            <Text style={styles.correctLabel}>Correct Answer: <Text style={{ color: colors.teal }}>{correctAnswer}</Text></Text>
 
             <Text style={styles.scoreHeader}>Live Leaderboard</Text>
             <View style={styles.listContainer}>
@@ -337,10 +340,10 @@ export default function BattleScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     paddingHorizontal: 24,
     paddingTop: 40,
     justifyContent: 'center',
@@ -350,7 +353,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 24,
     fontWeight: '800',
   },
@@ -361,7 +364,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   progressText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -378,16 +381,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
-    borderColor: '#334155',
+    borderColor: colors.border,
     borderWidth: 1.5,
     elevation: 6,
     maxHeight: 460,
   },
   questionTopic: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 11,
     textTransform: 'uppercase',
     fontWeight: '800',
@@ -395,7 +398,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   questionText: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 22,
@@ -406,23 +409,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   optBtn: {
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
   },
   optBtnActive: {
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     backgroundColor: '#1E3A8A',
   },
   optText: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '600',
   },
   optTextActive: {
-    color: '#FFF',
+    color: colors.white,
   },
   tfBox: {
     flexDirection: 'row',
@@ -432,19 +435,19 @@ const styles = StyleSheet.create({
   tfBtn: {
     flex: 1,
     height: 44,
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   tfBtnActive: {
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     backgroundColor: '#1E3A8A',
   },
   tfBtnText: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -452,24 +455,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   shortInput: {
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
-    color: '#F8FAFC',
+    color: colors.text,
     height: 44,
     paddingHorizontal: 12,
     fontSize: 14,
   },
   submitBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     height: 44,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   submitBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -479,7 +482,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   waitingText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 12,
   },
   modalOverlay: {
@@ -489,35 +492,35 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
-    borderColor: '#334155',
+    borderColor: colors.border,
     borderWidth: 1.5,
     elevation: 20,
   },
   modalTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 10,
   },
   correctLabel: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 20,
     fontWeight: '600',
   },
   scoreHeader: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: colors.border,
     paddingBottom: 4,
   },
   listContainer: {
@@ -527,25 +530,25 @@ const styles = StyleSheet.create({
   leaderboardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
   },
   rankText: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontWeight: '800',
     fontSize: 13,
     width: 28,
   },
   playerText: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '600',
     flex: 1,
   },
   scoreVal: {
-    color: '#10B981',
+    color: colors.teal,
     fontWeight: '800',
     fontSize: 13,
   },
@@ -554,7 +557,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timerText: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -564,7 +567,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   winnerSub: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -573,21 +576,21 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   winnerName: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 20,
     fontWeight: '900',
     textAlign: 'center',
     marginTop: 4,
   },
   winnerScore: {
-    color: '#10B981',
+    color: colors.teal,
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 20,
   },
   tableTitle: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 11,
     textTransform: 'uppercase',
     fontWeight: '700',
@@ -602,7 +605,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   leaveBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -619,14 +622,14 @@ const styles = StyleSheet.create({
     width: 80,
   },
   podiumName: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 2,
   },
   podiumPoints: {
-    color: '#10B981',
+    color: colors.teal,
     fontSize: 11,
     fontWeight: '800',
     marginBottom: 6,
@@ -640,10 +643,10 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   goldColumn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.amber,
   },
   silverColumn: {
-    backgroundColor: '#94A3B8',
+    backgroundcolor: colors.textMuted,
   },
   bronzeColumn: {
     backgroundColor: '#B45309',

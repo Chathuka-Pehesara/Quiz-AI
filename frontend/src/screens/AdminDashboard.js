@@ -20,6 +20,7 @@ import { useTheme } from '../context/ThemeContext';
 
 export default function AdminDashboard({ navigation }) {
   const { colors, theme, toggleTheme } = useTheme();
+  const styles = getStyles(colors, theme);
   const isFocused = useIsFocused();
   const [isLargeScreen, setIsLargeScreen] = useState(Dimensions.get('window').width > 768);
   const [activeTab, setActiveTab] = useState('overview'); // overview, flags, quizzes, users, courses, ai, settings
@@ -413,7 +414,7 @@ export default function AdminDashboard({ navigation }) {
                   />
                   <VictoryArea
                     data={chartData}
-                    style={{ data: { fill: '#3B82F6' + '20', stroke: '#3B82F6', strokeWidth: 2 } }}
+                    style={{ data: { fill: colors.primary + '20', stroke: colors.primary, strokeWidth: 2 } }}
                     interpolation="natural"
                   />
                 </VictoryChart>
@@ -474,7 +475,7 @@ export default function AdminDashboard({ navigation }) {
                       <Text style={[styles.struggledTopicName, { color: colors.text }]}>{topic.topic}</Text>
                       <Text style={[styles.struggledTopicDetail, { color: colors.textMuted }]}>{topic.total} attempts logged</Text>
                     </View>
-                    <View style={[styles.struggledTopicBadge, { backgroundColor: '#EF4444' + '15', borderColor: '#EF4444' }]}>
+                    <View style={[styles.struggledTopicBadge, { backgroundColor: colors.coral + '15', borderColor: colors.coral }]}>
                       <Text style={styles.struggledTopicBadgeText}>{topic.accuracy}% accuracy</Text>
                     </View>
                   </View>
@@ -519,7 +520,7 @@ export default function AdminDashboard({ navigation }) {
                   styles.flagCard, 
                   { 
                     backgroundColor: colors.card,
-                    borderColor: flag.status === 'unreviewed' ? '#EF4444' : flag.status === 'escalated' ? '#F59E0B' : colors.border
+                    borderColor: flag.status === 'unreviewed' ? colors.coral : flag.status === 'escalated' ? colors.amber : colors.border
                   }
                 ]}
               >
@@ -532,15 +533,15 @@ export default function AdminDashboard({ navigation }) {
                     style={[
                       styles.flagStatusBadge, 
                       { 
-                        backgroundColor: flag.status === 'unreviewed' ? '#EF4444' + '15' : flag.status === 'escalated' ? '#F59E0B' + '15' : '#10B981' + '15',
-                        borderColor: flag.status === 'unreviewed' ? '#EF4444' : flag.status === 'escalated' ? '#F59E0B' : '#10B981'
+                        backgroundColor: flag.status === 'unreviewed' ? colors.coral + '15' : flag.status === 'escalated' ? colors.amber + '15' : colors.teal + '15',
+                        borderColor: flag.status === 'unreviewed' ? colors.coral : flag.status === 'escalated' ? colors.amber : colors.teal
                       }
                     ]}
                   >
                     <Text 
                       style={[
                         styles.flagStatusText, 
-                        { color: flag.status === 'unreviewed' ? '#EF4444' : flag.status === 'escalated' ? '#F59E0B' : '#10B981' }
+                        { color: flag.status === 'unreviewed' ? colors.coral : flag.status === 'escalated' ? colors.amber : colors.teal }
                       ]}
                     >
                       {flag.status}
@@ -561,20 +562,20 @@ export default function AdminDashboard({ navigation }) {
                 </View>
 
                 <View style={[styles.flagReasonCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={[styles.flagReasonHeader, { color: '#F59E0B' }]}>Integrity Violation Details:</Text>
+                  <Text style={[styles.flagReasonHeader, { color: colors.amber }]}>Integrity Violation Details:</Text>
                   <Text style={[styles.flagReasonBody, { color: colors.text }]}>{flag.flagReason}</Text>
                 </View>
 
                 {flag.status === 'unreviewed' && (
                   <View style={styles.flagCardActions}>
                     <TouchableOpacity 
-                      style={[styles.flagBtnAction, { backgroundColor: '#10B981' }]}
+                      style={[styles.flagBtnAction, { backgroundColor: colors.teal }]}
                       onPress={() => handleResolveFlag(flag._id, 'reviewed')}
                     >
                       <Text style={styles.flagBtnActionText}>Resolve</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                      style={[styles.flagBtnAction, { backgroundColor: '#EA580C' }]}
+                      style={[styles.flagBtnAction, { backgroundColor: colors.amber }]}
                       onPress={() => handleResolveFlag(flag._id, 'escalated')}
                     >
                       <Text style={styles.flagBtnActionText}>Escalate</Text>
@@ -631,7 +632,7 @@ export default function AdminDashboard({ navigation }) {
 
           <View style={[styles.formRow, { flexDirection: isLargeScreen ? 'row' : 'column', alignItems: isLargeScreen ? 'center' : 'stretch', gap: 12 }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: isLargeScreen ? 0 : 12 }}>
-              <Text style={{ color: '#A1A1AA', fontSize: 13 }}>Questions count:</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Questions count:</Text>
               <TextInput
                 style={[styles.input, { width: 50, textAlign: 'center', marginBottom: 0 }]}
                 keyboardType="numeric"
@@ -674,19 +675,19 @@ export default function AdminDashboard({ navigation }) {
             ) : (
               quizzes.map((quiz) => (
                 <View key={quiz._id} style={styles.tableRow}>
-                  <Text style={[styles.td, { width: 220, color: '#F4F4F5', fontWeight: 'bold' }]} numberOfLines={1}>
+                  <Text style={[styles.td, { width: 220, color: colors.text, fontWeight: 'bold' }]} numberOfLines={1}>
                     {quiz.title}
                   </Text>
-                  <Text style={[styles.td, { width: 100, color: '#A1A1AA' }]}>
+                  <Text style={[styles.td, { width: 100, color: colors.textMuted }]}>
                     {quiz.courseCode}
                   </Text>
-                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: '#A1A1AA' }]}>
+                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: colors.textMuted }]}>
                     {quiz.questionCount}
                   </Text>
-                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: '#A1A1AA' }]}>
+                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: colors.textMuted }]}>
                     {quiz.attemptsCount}
                   </Text>
-                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: '#10B981', fontWeight: 'bold' }]}>
+                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: colors.teal, fontWeight: 'bold' }]}>
                     {quiz.averageScore}%
                   </Text>
                   <View style={[styles.td, { width: 100, alignItems: 'center' }]}>
@@ -780,13 +781,13 @@ export default function AdminDashboard({ navigation }) {
             ) : (
               users.map((item) => (
                 <View key={item._id} style={styles.tableRow}>
-                  <Text style={[styles.td, { width: 180, color: '#F4F4F5', fontWeight: 'bold' }]} numberOfLines={1}>
+                  <Text style={[styles.td, { width: 180, color: colors.text, fontWeight: 'bold' }]} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  <Text style={[styles.td, { width: 200, color: '#A1A1AA' }]} numberOfLines={1}>
+                  <Text style={[styles.td, { width: 200, color: colors.textMuted }]} numberOfLines={1}>
                     {item.email}
                   </Text>
-                  <Text style={[styles.td, { width: 100, textAlign: 'center', color: '#A1A1AA', textTransform: 'capitalize' }]}>
+                  <Text style={[styles.td, { width: 100, textAlign: 'center', color: colors.textMuted, textTransform: 'capitalize' }]}>
                     {item.role}
                   </Text>
                   
@@ -802,7 +803,7 @@ export default function AdminDashboard({ navigation }) {
                         </TouchableOpacity>
                       </View>
                     ) : (
-                      <Text style={{ color: '#71717A', fontSize: 12 }}>None</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12 }}>None</Text>
                     )}
                   </View>
 
@@ -895,24 +896,24 @@ export default function AdminDashboard({ navigation }) {
             ) : (
               courses.map((course) => (
                 <View key={course._id} style={styles.tableRow}>
-                  <Text style={[styles.td, { width: 100, color: '#F4F4F5', fontWeight: 'bold' }]}>
+                  <Text style={[styles.td, { width: 100, color: colors.text, fontWeight: 'bold' }]}>
                     {course.code}
                   </Text>
-                  <Text style={[styles.td, { width: 180, color: '#E4E4E7' }]} numberOfLines={1}>
+                  <Text style={[styles.td, { width: 180, color: colors.text }]} numberOfLines={1}>
                     {course.name}
                   </Text>
-                  <Text style={[styles.td, { width: 140, color: '#A1A1AA' }]} numberOfLines={1}>
+                  <Text style={[styles.td, { width: 140, color: colors.textMuted }]} numberOfLines={1}>
                     {course.professorName}
                   </Text>
-                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: '#A1A1AA' }]}>
+                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: colors.textMuted }]}>
                     {course.studentsCount}
                   </Text>
-                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: '#A1A1AA' }]}>
+                  <Text style={[styles.td, { width: 80, textAlign: 'center', color: colors.textMuted }]}>
                     {course.quizCount}
                   </Text>
                   <View style={[styles.td, { width: 160 }]}>
                     {course.battleHistory?.map((b, idx) => (
-                      <Text key={idx} style={{ color: '#71717A', fontSize: 11 }}>
+                      <Text key={idx} style={{ color: colors.textMuted, fontSize: 11 }}>
                         {b.code} ({b.date}): {b.players} pl
                       </Text>
                     ))}
@@ -1295,20 +1296,20 @@ export default function AdminDashboard({ navigation }) {
                 <Text style={styles.modalFieldValue}>{reviewUserModal.email || 'student@university.edu'}</Text>
                 
                 <Text style={styles.modalFieldLabel}>Alert Triggered</Text>
-                <Text style={[styles.modalFieldValue, { color: '#EF4444', fontWeight: 'bold' }]}>
+                <Text style={[styles.modalFieldValue, { color: colors.coral, fontWeight: 'bold' }]}>
                   {reviewUserModal.flagReason || 'Rapid answers (suspected scripting)'}
                 </Text>
               </View>
 
               <View style={styles.modalActionsRow}>
                 <TouchableOpacity 
-                  style={[styles.modalBtn, { backgroundColor: '#10B981' }]}
+                  style={[styles.modalBtn, { backgroundColor: colors.teal }]}
                   onPress={() => handleToggleFlag(reviewUserModal, false)}
                 >
                   <Text style={styles.modalBtnText}>Dismiss & Clear Flag</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.modalBtn, { backgroundColor: '#3F3F46' }]}
+                  style={[styles.modalBtn, { backgroundColor: colors.border }]}
                   onPress={() => setReviewUserModal(null)}
                 >
                   <Text style={styles.modalBtnText}>Keep Flagged</Text>
@@ -1371,7 +1372,7 @@ export default function AdminDashboard({ navigation }) {
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.modalBtn, { backgroundColor: '#3F3F46' }]}
+                  style={[styles.modalBtn, { backgroundColor: colors.border }]}
                   onPress={() => setEditUserModal(null)}
                 >
                   <Text style={styles.modalBtnText}>Cancel</Text>
@@ -1431,7 +1432,7 @@ export default function AdminDashboard({ navigation }) {
 
             <View style={styles.modalActionsRow}>
               <TouchableOpacity 
-                style={[styles.modalBtn, { backgroundColor: '#10B981' }]}
+                style={[styles.modalBtn, { backgroundColor: colors.teal }]}
                 onPress={handleCreateUser}
                 disabled={actionLoading}
               >
@@ -1442,7 +1443,7 @@ export default function AdminDashboard({ navigation }) {
                 )}
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.modalBtn, { backgroundColor: '#3F3F46' }]}
+                style={[styles.modalBtn, { backgroundColor: colors.border }]}
                 onPress={() => setAddUserModalVisible(false)}
               >
                 <Text style={styles.modalBtnText}>Cancel</Text>
@@ -1455,18 +1456,18 @@ export default function AdminDashboard({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     height: '100%',
     overflow: 'hidden',
   },
   sidebar: {
     width: 180,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRightWidth: 1,
-    borderRightColor: '#262629',
+    borderRightColor: colors.border,
     alignItems: 'center',
     paddingVertical: 24,
     justifyContent: 'space-between',
@@ -1475,15 +1476,15 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#312E81',
+    backgroundColor: colors.primary,
     borderWidth: 1,
-    borderColor: '#4338CA',
+    borderColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
   sidebarAvatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1505,22 +1506,22 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sidebarBtnActive: {
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
   },
   sidebarIcon: {
     fontSize: 18,
   },
   sidebarLabel: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
   },
   sidebarLabelActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   mainPanel: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
   },
   mainContent: {
     padding: 24,
@@ -1532,7 +1533,7 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1546,7 +1547,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   panelTitleText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '800',
   },
@@ -1560,11 +1561,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   healthDot: {
-    color: '#10B981',
+    color: colors.teal,
     fontSize: 10,
   },
   healthText: {
-    color: '#047857',
+    color: colors.teal,
     fontSize: 11.5,
     fontWeight: '700',
   },
@@ -1577,14 +1578,14 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: 0,
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
   },
   statCardLabel: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
     flexShrink: 1,
@@ -1599,7 +1600,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionTitleText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 12,
@@ -1610,8 +1611,8 @@ const styles = StyleSheet.create({
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
@@ -1631,12 +1632,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activityTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13.5,
     fontWeight: '700',
   },
   activityDetail: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
   },
@@ -1645,41 +1646,41 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   activityTime: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11.5,
   },
   reviewBtn: {
     borderWidth: 1,
-    borderColor: '#3F3F46',
-    backgroundColor: '#161618',
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     borderRadius: 6,
     paddingVertical: 3,
     paddingHorizontal: 8,
     marginTop: 2,
   },
   reviewBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11,
     fontWeight: '600',
   },
 
   // Sub card formatting
   subCard: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
   },
   subCardTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14.5,
     fontWeight: '700',
     marginBottom: 4,
   },
   subCardSub: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12,
     marginBottom: 14,
   },
@@ -1689,13 +1690,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   input: {
-    backgroundColor: '#0C0C0E',
-    borderColor: '#262629',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 38,
-    color: '#F4F4F5',
+    color: colors.text,
     fontSize: 13,
     marginBottom: 12,
   },
@@ -1705,8 +1706,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   pickerContainer: {
-    backgroundColor: '#0C0C0E',
-    borderColor: '#262629',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     height: 38,
@@ -1715,7 +1716,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   pickerFakeInput: {
-    color: '#F4F4F5',
+    color: colors.text,
     fontSize: 13,
     padding: 0,
   },
@@ -1728,15 +1729,15 @@ const styles = StyleSheet.create({
     height: 38,
   },
   generateBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },
 
   // Tables
   table: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     overflow: 'hidden',
@@ -1744,14 +1745,14 @@ const styles = StyleSheet.create({
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     borderBottomWidth: 1,
-    borderBottomColor: '#262629',
+    borderBottomColor: colors.border,
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
   th: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1759,7 +1760,7 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#262629',
+    borderBottomColor: colors.border,
     paddingVertical: 10,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -1768,7 +1769,7 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
   },
   tableEmptyText: {
-    color: '#71717A',
+    color: colors.textMuted,
     textAlign: 'center',
     paddingVertical: 20,
     fontSize: 13,
@@ -1780,15 +1781,15 @@ const styles = StyleSheet.create({
   },
   badgeGreen: { backgroundColor: '#ECFDF5' },
   badgeYellow: { backgroundColor: '#FFFBEB' },
-  badgeGrey: { backgroundColor: '#F4F4F5' },
+  badgeGrey: { backgroundcolor: colors.text },
   badgeRed: { backgroundColor: '#FEE2E2' },
   statusBadgeText: {
     fontSize: 10.5,
     fontWeight: '700',
   },
-  textGreen: { color: '#047857' },
+  textGreen: { color: colors.teal },
   textYellow: { color: '#B45309' },
-  textGrey: { color: '#71717A' },
+  textGrey: { color: colors.textMuted },
   textRed: { color: '#991B1B' },
   actionBtnDelete: {
     backgroundColor: '#7F1D1D',
@@ -1802,28 +1803,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   actionBtnEdit: {
-    backgroundColor: '#27272A',
-    borderColor: '#3F3F46',
+    backgroundColor: colors.border,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 6,
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   actionBtnTextEdit: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11,
     fontWeight: '600',
   },
 
   // User Management tab actions
   addUserBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   addUserBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1836,8 +1837,8 @@ const styles = StyleSheet.create({
   },
   filterGroup: {
     flexDirection: 'row',
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     padding: 3,
@@ -1848,15 +1849,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   filterBtnActive: {
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
   },
   filterBtnText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   filterBtnTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -1865,32 +1866,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#262629',
-    backgroundColor: '#161618',
+    borderColor: colors.border,
+    backgroundColor: colors.card,
   },
   checkboxActive: {
-    borderColor: '#EF4444',
+    borderColor: colors.coral,
   },
   checkboxLabel: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
   reviewPillBtn: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.coral,
     borderRadius: 4,
     paddingVertical: 1,
     paddingHorizontal: 4,
   },
   reviewPillText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 9,
     fontWeight: '900',
   },
 
   // Courses
   createBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
     borderRadius: 8,
     paddingHorizontal: 16,
     justifyContent: 'center',
@@ -1898,28 +1899,28 @@ const styles = StyleSheet.create({
     height: 38,
   },
   createBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },
 
   // AI settings
   settingGroupCard: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   settingGroupTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 4,
   },
   settingGroupSub: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11.5,
     marginBottom: 14,
   },
@@ -1934,11 +1935,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   formFieldLabel: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13,
   },
   formFieldSubLabel: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 4,
     marginBottom: 8,
@@ -1951,7 +1952,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sliderLabel: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13.5,
     marginBottom: 8,
   },
@@ -1964,19 +1965,19 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sliderMockBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '700',
   },
   sliderMockTrackBg: {
     flex: 1,
     height: 6,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -1986,7 +1987,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   saveSettingsBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     height: 44,
     justifyContent: 'center',
@@ -1994,7 +1995,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   saveSettingsText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -2004,7 +2005,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputFieldLabel: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11.5,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -2015,16 +2016,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#262629',
+    borderBottomColor: colors.border,
     paddingVertical: 12,
   },
   toggleTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13.5,
     fontWeight: '700',
   },
   toggleSub: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11.5,
     marginTop: 2,
   },
@@ -2036,16 +2037,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   switchOn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
   },
   switchOff: {
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
   },
   switchKnob: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundcolor: colors.white,
   },
   switchKnobOn: {
     alignSelf: 'flex-end',
@@ -2062,8 +2063,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1.5,
     borderRadius: 16,
     padding: 24,
@@ -2076,7 +2077,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 16,
@@ -2084,22 +2085,22 @@ const styles = StyleSheet.create({
   },
   modalDetailsBox: {
     width: '100%',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     borderRadius: 10,
     padding: 14,
-    borderColor: '#262629',
+    borderColor: colors.border,
     borderWidth: 1,
     marginBottom: 16,
   },
   modalFieldLabel: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11,
     textTransform: 'uppercase',
     fontWeight: '700',
     marginBottom: 2,
   },
   modalFieldValue: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     marginBottom: 10,
   },
@@ -2116,7 +2117,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
@@ -2127,9 +2128,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#262629',
+    borderBottomColor: colors.border,
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
@@ -2139,20 +2140,20 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   mobileHeaderTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '800',
   },
   mobileLogoutBtn: {
-    borderColor: '#3F3F46',
+    borderColor: colors.border,
     borderWidth: 1,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 8,
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
   mobileLogoutText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 11.5,
     fontWeight: '600',
   },
@@ -2164,9 +2165,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 60,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderTopWidth: 1,
-    borderTopColor: '#262629',
+    borderTopColor: colors.border,
     zIndex: 9999,
   },
   mobileTabBarScrollContainer: {
@@ -2183,18 +2184,18 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   mobileTabBtnActive: {
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
   },
   mobileTabIcon: {
     fontSize: 16,
   },
   mobileTabLabel: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 10,
     fontWeight: '600',
     marginTop: 2,
   },
   mobileTabLabelActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
 });

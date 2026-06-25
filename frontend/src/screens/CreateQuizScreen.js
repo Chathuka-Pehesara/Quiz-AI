@@ -1,8 +1,11 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { api } from '../services/api';
 
 export default function CreateQuizScreen({ route, navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const { quizId } = route.params;
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -75,9 +78,9 @@ export default function CreateQuizScreen({ route, navigation }) {
       <Text style={styles.subHeader}>{quiz?.title}</Text>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700' }}>QUIZ DURATION (MINUTES):</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>QUIZ DURATION (MINUTES):</Text>
         <TextInput
-          style={[styles.input, { width: 60, height: 32, marginBottom: 0, textAlign: 'center', backgroundColor: '#0F172A', color: '#FFF' }]}
+          style={[styles.input, { width: 60, height: 32, marginBottom: 0, textAlign: 'center', backgroundColor: colors.background, color: colors.white }]}
           keyboardType="numeric"
           maxLength={3}
           value={timeLimit}
@@ -162,31 +165,31 @@ export default function CreateQuizScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingTop: 40,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 14,
     marginTop: 12,
   },
   header: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 20,
     fontWeight: '800',
   },
   subHeader: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 16,
@@ -195,22 +198,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 16,
-    borderColor: '#334155',
+    borderColor: colors.border,
     borderWidth: 1,
   },
   cardIndex: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontWeight: '800',
     fontSize: 14,
     marginBottom: 10,
     textTransform: 'uppercase',
   },
   label: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -218,11 +221,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   input: {
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
-    color: '#F8FAFC',
+    color: colors.text,
     paddingHorizontal: 12,
     height: 40,
     fontSize: 14,
@@ -233,11 +236,11 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   inputSmall: {
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
-    color: '#F8FAFC',
+    color: colors.text,
     paddingHorizontal: 12,
     height: 36,
     fontSize: 13,
@@ -254,7 +257,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   optLetter: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 14,
     width: 16,
@@ -266,14 +269,14 @@ const styles = StyleSheet.create({
     right: 16,
   },
   publishBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
     height: 50,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#10B981',
+        shadowColor: colors.teal,
         shadowOpacity: 0.3,
         shadowRadius: 10,
       },
@@ -283,7 +286,7 @@ const styles = StyleSheet.create({
     }),
   },
   publishBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '800',
   },

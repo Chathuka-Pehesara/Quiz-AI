@@ -1,3 +1,4 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -18,6 +19,8 @@ import { api } from '../services/api';
 import { getSocket, connectSocket } from '../services/socket';
 
 export default function GroupDetailScreen({ navigation, route }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const { groupId, groupName } = route.params;
   const [activeTab, setActiveTab] = useState('chat'); // chat, leaderboard, history
   const [loading, setLoading] = useState(true);
@@ -134,7 +137,7 @@ export default function GroupDetailScreen({ navigation, route }) {
   const getLevelColor = (level) => {
     switch (level) {
       case 'Genius': return '#A855F7';
-      case 'Gold': return '#F59E0B';
+      case 'Gold': return colors.amber;
       case 'Silver': return '#94A3B8';
       case 'Bronze':
       default:
@@ -407,21 +410,21 @@ export default function GroupDetailScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
   },
   loadingText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
   },
   header: {
@@ -436,18 +439,18 @@ const styles = StyleSheet.create({
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   backBtnText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15.5,
     fontWeight: '800',
     flex: 1,
@@ -460,7 +463,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1B4B',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#312E81',
+    borderColor: colors.primary,
   },
   inviteBtnText: {
     color: '#818CF8',
@@ -482,15 +485,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTabButton: {
-    borderBottomColor: '#4F46E5',
+    borderBottomColor: colors.primary,
   },
   tabButtonText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
     fontWeight: '700',
   },
   activeTabButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   chatListContainer: {
     padding: 16,
@@ -516,14 +519,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3F3F46',
+    borderColor: colors.border,
   },
   messageAvatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -534,14 +537,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   myMessageBubble: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     borderBottomRightRadius: 2,
   },
   otherMessageBubble: {
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderBottomLeftRadius: 2,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   messageSenderName: {
     color: '#818CF8',
@@ -554,14 +557,14 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   myMessageText: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   otherMessageText: {
     color: '#D4D4D8',
   },
   messageTime: {
     alignSelf: 'flex-end',
-    color: '#94A3B8' + '80',
+    color: colors.textMuted + '80',
     fontSize: 9,
     marginTop: 4,
   },
@@ -576,17 +579,17 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#262629',
-    color: '#FFFFFF',
+    borderColor: colors.border,
+    color: colors.white,
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === 'ios' ? 10 : 8,
     fontSize: 13.5,
   },
   sendButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -597,22 +600,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1A2E',
   },
   sendButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },
   leaderboardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   topLeaderboardRow: {
-    borderColor: '#4F46E5' + '40',
+    borderColor: colors.primary + '40',
   },
   rankContainer: {
     width: 28,
@@ -620,7 +623,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rankText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13.5,
     fontWeight: '700',
   },
@@ -631,15 +634,15 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 8,
     borderWidth: 1,
-    borderColor: '#3F3F46',
+    borderColor: colors.border,
   },
   memberAvatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11.5,
     fontWeight: '700',
   },
@@ -648,7 +651,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   memberName: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
@@ -667,19 +670,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   memberXpText: {
-    color: '#10B981',
+    color: colors.teal,
     fontSize: 13.5,
     fontWeight: '800',
   },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   historyIconContainer: {
     width: 36,
@@ -700,12 +703,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   historyTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13.5,
     fontWeight: '700',
   },
   historySubtitle: {
-    color: '#A1A1AA',
+    color: colors.textMuted,
     fontSize: 11.5,
   },
   historyStudentName: {
@@ -713,7 +716,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   historyTime: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 10,
     marginTop: 2,
   },
@@ -722,12 +725,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   historyScoreText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '800',
   },
   historyPercentageText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 10,
     marginTop: 2,
   },
@@ -741,13 +744,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   emptyTitle: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '800',
     marginBottom: 6,
   },
   emptyText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12.5,
     textAlign: 'center',
     lineHeight: 18,
@@ -759,29 +762,29 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
     gap: 14,
   },
   modalTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 17,
     fontWeight: '800',
   },
   modalDescription: {
-    color: '#A1A1AA',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 18,
   },
   modalTextInput: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
     borderRadius: 8,
-    color: '#FFFFFF',
+    color: colors.white,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
@@ -793,20 +796,20 @@ const styles = StyleSheet.create({
   },
   modalCancelBtn: {
     flex: 1,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     paddingVertical: 11,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalCancelText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
   modalInviteBtn: {
     flex: 1,
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     paddingVertical: 11,
     borderRadius: 8,
     justifyContent: 'center',
@@ -816,7 +819,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1A2E',
   },
   modalInviteText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13.5,
     fontWeight: '700',
   },

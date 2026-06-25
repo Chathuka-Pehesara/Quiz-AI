@@ -1,3 +1,4 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, ActivityIndicator, Alert, ScrollView, Platform, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,6 +7,8 @@ import * as Notifications from 'expo-notifications';
 import { api } from '../services/api';
 
 export default function QuizScreen({ route, navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const { quizId } = route.params;
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -571,8 +574,8 @@ export default function QuizScreen({ route, navigation }) {
           </View>
         </View>
         {timeLeft !== null && (
-          <View style={{ backgroundColor: '#1E293B', borderWidth: 1, borderColor: timeLeft < 60 ? '#EF4444' : '#334155', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10 }}>
-            <Text style={{ color: timeLeft < 60 ? '#EF4444' : '#F8FAFC', fontWeight: 'bold', fontSize: 13 }}>
+          <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: timeLeft < 60 ? colors.coral : colors.border, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10 }}>
+            <Text style={{ color: timeLeft < 60 ? colors.coral : '#F8FAFC', fontWeight: 'bold', fontSize: 13 }}>
               ⏱️ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
             </Text>
           </View>
@@ -759,21 +762,21 @@ export default function QuizScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingTop: 40,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 14,
     marginTop: 12,
   },
@@ -781,28 +784,28 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   progressText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 6,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 3,
   },
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
     marginBottom: 24,
   },
   metaRow: {
@@ -811,10 +814,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   topicBadge: {
-    backgroundColor: '#1E293B',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.card,
+    borderColor: colors.primary,
     borderWidth: 1,
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 11,
     fontWeight: '700',
     paddingVertical: 4,
@@ -823,7 +826,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   discussBadge: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderColor: '#818CF8',
     borderWidth: 1,
     paddingVertical: 4,
@@ -838,8 +841,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalDiscussBtn: {
-    backgroundColor: '#312E81',
-    borderColor: '#4338CA',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
     borderWidth: 1,
     borderRadius: 8,
     paddingVertical: 10,
@@ -861,11 +864,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     borderWidth: 1,
   },
-  easyDiff: { borderColor: '#10B981', color: '#10B981' },
-  medDiff: { borderColor: '#F59E0B', color: '#F59E0B' },
-  hardDiff: { borderColor: '#EF4444', color: '#EF4444' },
+  easyDiff: { borderColor: colors.teal, color: colors.teal },
+  medDiff: { borderColor: colors.amber, color: colors.amber },
+  hardDiff: { borderColor: colors.coral, color: colors.coral },
   questionText: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
     lineHeight: 24,
@@ -875,23 +878,23 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   optionBtn: {
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
     padding: 14,
   },
   optionBtnActive: {
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     backgroundColor: '#1E3A8A',
   },
   optionText: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
   optionTextActive: {
-    color: '#FFF',
+    color: colors.white,
   },
   tfContainer: {
     flexDirection: 'row',
@@ -900,19 +903,19 @@ const styles = StyleSheet.create({
   tfBtn: {
     flex: 1,
     height: 48,
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   tfActive: {
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     backgroundColor: '#1E3A8A',
   },
   tfText: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -920,31 +923,31 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   shortLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     textTransform: 'uppercase',
     fontWeight: '700',
     marginBottom: 8,
   },
   shortInput: {
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
-    color: '#F8FAFC',
+    color: colors.text,
     height: 48,
     paddingHorizontal: 16,
     fontSize: 15,
   },
   submitBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#2563EB',
+        shadowColor: colors.primary,
         shadowOpacity: 0.3,
         shadowRadius: 10,
       },
@@ -954,7 +957,7 @@ const styles = StyleSheet.create({
     }),
   },
   submitBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -965,11 +968,11 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
-    borderColor: '#334155',
+    borderColor: colors.border,
     borderWidth: 1.5,
     elevation: 20,
   },
@@ -978,7 +981,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalTitle: {
-    color: '#EF4444',
+    color: colors.coral,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 16,
@@ -989,7 +992,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   modalLoaderText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 12,
   },
   modalScroll: {
@@ -997,13 +1000,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalText: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
   },
   modalCloseBtn: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.coral,
     borderRadius: 10,
     height: 44,
     width: '100%',
@@ -1011,7 +1014,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCloseText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1030,10 +1033,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#4B5563',
+    borderColor: colors.border,
   },
   hintBtnText: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1047,7 +1050,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   hintTextLabel: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontSize: 12.5,
     fontWeight: '800',
     textTransform: 'uppercase',

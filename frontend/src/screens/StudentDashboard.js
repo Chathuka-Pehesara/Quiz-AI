@@ -18,8 +18,11 @@ import { api } from '../services/api';
 import { clearAuth, getRoleFromToken } from '../utils/storage';
 import { scheduleSmartReminders } from '../utils/notifications';
 import { getSocket, connectSocket } from '../services/socket';
+import { useTheme } from '../context/ThemeContext';
 
 export default function StudentDashboard({ navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const isFocused = useIsFocused();
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -266,9 +269,9 @@ export default function StudentDashboard({ navigation }) {
 
   // Helper for progress bar color mapping
   const getProgressBarColor = (score) => {
-    if (score >= 80) return '#10B981'; // Green
-    if (score >= 50) return '#F59E0B'; // Orange
-    return '#EF4444'; // Red
+    if (score >= 80) return colors.teal; // Green
+    if (score >= 50) return colors.amber; // Orange
+    return colors.coral; // Red
   };
 
   // Helper for course score badge colors
@@ -374,10 +377,10 @@ export default function StudentDashboard({ navigation }) {
             )}
             {(userRole === 'professor' || userRole === 'admin') && (
               <TouchableOpacity 
-                style={[styles.logoutBtn, { borderColor: '#F59E0B', marginRight: 8 }]} 
+                style={[styles.logoutBtn, { borderColor: colors.amber, marginRight: 8 }]} 
                 onPress={() => navigation.navigate('ProfessorDashboard')}
               >
-                <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 11 }}>Prof Console</Text>
+                <Text style={{ color: colors.amber, fontWeight: '700', fontSize: 11 }}>Prof Console</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -748,10 +751,10 @@ export default function StudentDashboard({ navigation }) {
             {knowledgeGap.map((item, idx) => {
               // Custom colors matching mockup styling
               let fillColor = '#6366F1'; // Default Indigo
-              if (item.topic.toLowerCase().includes('normalization')) fillColor = '#EF4444'; // Red
+              if (item.topic.toLowerCase().includes('normalization')) fillColor = colors.coral; // Red
               else if (item.topic.toLowerCase().includes('joins')) fillColor = '#6366F1'; // Purple/Indigo
-              else if (item.topic.toLowerCase().includes('transactions')) fillColor = '#3B82F6'; // Blue
-              else if (item.topic.toLowerCase().includes('indexing')) fillColor = '#F59E0B'; // Yellow/Amber
+              else if (item.topic.toLowerCase().includes('transactions')) fillColor = colors.primary; // Blue
+              else if (item.topic.toLowerCase().includes('indexing')) fillColor = colors.amber; // Yellow/Amber
 
               return (
                 <View key={idx} style={styles.gapRow}>
@@ -917,14 +920,14 @@ export default function StudentDashboard({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
   },
   contentContainer: {
     paddingHorizontal: 16,
@@ -933,7 +936,7 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -953,15 +956,15 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
     borderWidth: 1,
-    borderColor: '#3F3F46',
+    borderColor: colors.border,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -970,12 +973,12 @@ const styles = StyleSheet.create({
     maxWidth: '50%',
   },
   welcomeText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '500',
   },
   userName: {
-    color: '#F4F4F5',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -994,26 +997,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   streakText: {
-    color: '#047857',
+    color: colors.teal,
     fontSize: 11,
     fontWeight: '700',
   },
   logoutBtn: {
     borderWidth: 1,
-    borderColor: '#27272A',
-    backgroundColor: '#161618',
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
   },
   logoutText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontWeight: '600',
     fontSize: 12,
   },
   statsCard: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 14,
@@ -1027,19 +1030,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statLabel: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   statValueWhite: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '800',
   },
   statValueGreen: {
-    color: '#10B981',
+    color: colors.teal,
     fontSize: 18,
     fontWeight: '800',
   },
@@ -1051,11 +1054,11 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 24,
-    backgroundColor: '#262629',
+    backgroundColor: colors.border,
   },
   insightCard: {
     backgroundColor: '#EEF2F6',
-    borderColor: '#E2E8F0',
+    bordercolor: colors.text,
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
@@ -1071,7 +1074,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   insightLabel: {
-    color: '#312E81',
+    color: colors.primary,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1088,7 +1091,7 @@ const styles = StyleSheet.create({
     color: '#1E1B4B',
   },
   practiceBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -1098,18 +1101,18 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   practiceBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },
   practiceArrow: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '700',
   },
   card: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
@@ -1130,7 +1133,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   cardTitle: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
@@ -1151,17 +1154,17 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
-    borderColor: '#262629',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 38,
-    color: '#F4F4F5',
+    color: colors.text,
     fontSize: 13,
   },
   joinBtn: {
-    backgroundColor: '#EA580C',
+    backgroundColor: colors.amber,
     borderRadius: 8,
     paddingHorizontal: 16,
     justifyContent: 'center',
@@ -1169,7 +1172,7 @@ const styles = StyleSheet.create({
     height: 38,
   },
   enrollBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
     borderRadius: 8,
     paddingHorizontal: 16,
     justifyContent: 'center',
@@ -1177,7 +1180,7 @@ const styles = StyleSheet.create({
     height: 38,
   },
   btnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1189,17 +1192,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14.5,
     fontWeight: '700',
   },
   sectionSubtitle: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
   },
   emptyCard: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 24,
@@ -1208,13 +1211,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
   },
   courseCard: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
@@ -1227,7 +1230,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   courseNameCode: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
     flex: 1,
@@ -1244,7 +1247,7 @@ const styles = StyleSheet.create({
   },
   courseProgressBarBg: {
     height: 6,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 10,
@@ -1259,25 +1262,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   courseQuizzesStatus: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12,
   },
   takeQuizBtn: {
     borderWidth: 1,
-    borderColor: '#3F3F46',
-    backgroundColor: '#161618',
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   takeQuizBtnText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 11.5,
     fontWeight: '600',
   },
   gapMapCard: {
     backgroundColor: '#EEF2F6',
-    borderColor: '#E2E8F0',
+    bordercolor: colors.text,
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
@@ -1294,7 +1297,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   gapMapTitle: {
-    color: '#0F172A',
+    color: colors.background,
     fontSize: 13.5,
     fontWeight: '700',
   },
@@ -1305,7 +1308,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   gapLabel: {
-    color: '#334155',
+    color: colors.border,
     fontSize: 12.5,
     fontWeight: '600',
     width: 90,
@@ -1323,7 +1326,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   gapValue: {
-    color: '#334155',
+    color: colors.border,
     fontSize: 12.5,
     fontWeight: '700',
     width: 35,
@@ -1337,7 +1340,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -1345,7 +1348,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     maxHeight: '75%',
     borderTopWidth: 1,
-    borderTopColor: '#262629',
+    borderTopColor: colors.border,
   },
   modalHeaderRow: {
     flexDirection: 'row',
@@ -1354,7 +1357,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   modalTitleText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -1362,12 +1365,12 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalCloseIcon: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 16,
     fontWeight: '600',
   },
   modalCourseSubtitle: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
     marginBottom: 16,
   },
@@ -1377,7 +1380,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   modalLoadingText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
   },
   modalEmptyContainer: {
@@ -1385,13 +1388,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalEmptyText: {
-    color: '#10B981',
+    color: colors.teal,
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 4,
   },
   modalEmptySubtext: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
   },
@@ -1399,8 +1402,8 @@ const styles = StyleSheet.create({
     maxHeight: 300,
   },
   modalQuizCard: {
-    backgroundColor: '#0C0C0E',
-    borderColor: '#262629',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
     padding: 14,
@@ -1414,30 +1417,30 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   modalQuizTitle: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
   modalQuizSub: {
-    color: '#4F46E5',
+    color: colors.primary,
     fontSize: 11.5,
     fontWeight: '600',
     marginTop: 2,
   },
   modalStartBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
   modalStartBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11.5,
     fontWeight: '700',
   },
   xpCard: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
@@ -1450,32 +1453,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   levelBadgeContainer: {
-    backgroundColor: '#3B82F6' + '20',
+    backgroundColor: colors.primary + '20',
     paddingVertical: 2,
     paddingHorizontal: 8,
     borderRadius: 6,
   },
   levelBadgeText: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   xpPointsText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
   xpBarBg: {
     height: 8,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 8,
   },
   xpBarFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 4,
   },
   freezeTokensText: {
@@ -1490,8 +1493,8 @@ const styles = StyleSheet.create({
   },
   hubBtn: {
     flex: 1,
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,
@@ -1502,13 +1505,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   hubBtnText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
   dueTopicsCard: {
-    backgroundColor: '#161618',
-    borderColor: '#EF4444' + '40',
+    backgroundColor: colors.card,
+    borderColor: colors.coral + '40',
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
@@ -1524,14 +1527,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   dueTitle: {
-    color: '#EF4444',
+    color: colors.coral,
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   dueSubtitle: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11,
     lineHeight: 15,
     marginBottom: 12,
@@ -1541,8 +1544,8 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   dueItemCard: {
-    backgroundColor: '#0C0C0E',
-    borderColor: '#262629',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
@@ -1551,37 +1554,37 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dueItemTopic: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
   dueReviewBtn: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.coral,
     borderRadius: 6,
     paddingVertical: 4,
     alignItems: 'center',
   },
   dueReviewBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 10,
     fontWeight: '800',
   },
   activityCard: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
   },
   activityTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13.5,
     fontWeight: '800',
     marginBottom: 10,
   },
   emptyActivityText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
     textAlign: 'center',
@@ -1593,22 +1596,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#262629',
+    borderBottomColor: colors.border,
   },
   activityItemText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     lineHeight: 16,
     flex: 1,
     paddingRight: 8,
   },
   activityTimeText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 10,
   },
   challengeTriggerBtn: {
-    backgroundColor: '#312E81',
-    borderColor: '#4338CA',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
     borderWidth: 1,
     borderRadius: 8,
     paddingVertical: 4,
@@ -1623,19 +1626,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   duelInfo: {
     flex: 1,
     gap: 2,
   },
   duelOpponent: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12.5,
     fontWeight: '700',
   },
@@ -1644,7 +1647,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   duelStatus: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 10.5,
   },
   duelScoreAction: {
@@ -1653,34 +1656,34 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   duelScoreText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '800',
   },
   playDuelBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
     borderRadius: 6,
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
   playDuelBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11,
     fontWeight: '700',
   },
   modalTextInput: {
-    backgroundColor: '#0C0C0E',
-    borderColor: '#262629',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
-    color: '#FFFFFF',
+    color: colors.white,
     paddingHorizontal: 12,
     height: 40,
     fontSize: 13.5,
     marginBottom: 12,
   },
   modalSelectQuizLabel: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 8,
@@ -1689,14 +1692,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   courseDuelTitle: {
-    color: '#A1A1AA',
+    color: colors.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     marginBottom: 6,
   },
   loadCourseQuizzesBtn: {
     paddingVertical: 6,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     borderRadius: 6,
     alignItems: 'center',
     marginBottom: 6,
@@ -1707,24 +1710,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   duelQuizCard: {
-    backgroundColor: '#0C0C0E',
-    borderColor: '#262629',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 6,
     padding: 8,
     marginBottom: 6,
   },
   selectedDuelQuizCard: {
-    borderColor: '#4F46E5',
+    borderColor: colors.primary,
     backgroundColor: '#1E1B4B',
   },
   duelQuizTitle: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
   duelQuizQuestions: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 10.5,
   },
   disabledModalStartBtn: {

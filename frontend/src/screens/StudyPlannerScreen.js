@@ -1,3 +1,4 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -14,6 +15,8 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { api } from '../services/api';
 
 export default function StudyPlannerScreen({ navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const [studyPlan, setStudyPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [practiceLoadingDay, setPracticeLoadingDay] = useState(null);
@@ -183,21 +186,21 @@ export default function StudyPlannerScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
   },
   loadingText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
   },
   header: {
@@ -212,18 +215,18 @@ const styles = StyleSheet.create({
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   backBtnText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15.5,
     fontWeight: '800',
   },
@@ -237,7 +240,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 20,
-    borderColor: '#E2E8F0',
+    bordercolor: colors.text,
     borderWidth: 1,
     gap: 12,
   },
@@ -255,13 +258,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   introDesc: {
-    color: '#312E81',
+    color: colors.primary,
     fontSize: 12,
     lineHeight: 16,
   },
   dayCard: {
-    backgroundColor: '#161618',
-    borderColor: '#262629',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 14,
     padding: 16,
@@ -274,23 +277,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dayBadge: {
-    backgroundColor: '#3B82F6' + '20',
+    backgroundColor: colors.primary + '20',
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 6,
   },
   dayBadgeText: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 10,
     fontWeight: '800',
   },
   estMinutes: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 11.5,
     fontWeight: '600',
   },
   topicText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15.5,
     fontWeight: '800',
     marginBottom: 12,
@@ -302,7 +305,7 @@ const styles = StyleSheet.create({
   taskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 10,
     borderWidth: 1,
@@ -319,11 +322,11 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   checkboxChecked: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: colors.teal,
+    borderColor: colors.teal,
   },
   checkmark: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11,
     fontWeight: 'bold',
   },
@@ -334,11 +337,11 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   taskTextChecked: {
-    color: '#71717A',
+    color: colors.textMuted,
     textDecorationLine: 'line-through',
   },
   practiceBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     height: 40,
     flexDirection: 'row',
@@ -347,12 +350,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   practiceBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '800',
   },
   practiceBtnIcon: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11,
   },
   emptyContainer: {
@@ -360,7 +363,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13.5,
     textAlign: 'center',
   },

@@ -4,8 +4,11 @@ import { api } from '../services/api';
 import { storeToken, storeUser } from '../utils/storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LoginScreen({ navigation }) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -137,7 +140,7 @@ export default function LoginScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.headerBox}>
-        <Text style={styles.title}>Quiz<Text style={{ color: '#3B82F6' }}>AI</Text></Text>
+        <Text style={styles.title}>Quiz<Text style={{ color: colors.primary }}>AI</Text></Text>
         <Text style={styles.subtitle}>University Intelligent Adaptive Exam Suite</Text>
       </View>
 
@@ -146,7 +149,7 @@ export default function LoginScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="yourname@university.edu"
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.textMuted}
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
@@ -157,7 +160,7 @@ export default function LoginScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="••••••••••••"
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.textMuted}
           secureTextEntry
           autoCapitalize="none"
           value={password}
@@ -180,7 +183,7 @@ export default function LoginScreen({ navigation }) {
           {biometricsSupported && (
             <TouchableOpacity 
               activeOpacity={0.8} 
-              style={[styles.button, { width: 50, backgroundColor: '#334155', marginTop: 0, justifyContent: 'center', alignItems: 'center' }]}
+              style={[styles.button, { width: 50, backgroundColor: colors.border, marginTop: 0, justifyContent: 'center', alignItems: 'center' }]}
               onPress={handleBiometricLogin}
             >
               <Text style={{ fontSize: 20 }}>👤</Text>
@@ -193,7 +196,7 @@ export default function LoginScreen({ navigation }) {
           onPress={() => navigation.navigate('Register')}
         >
           <Text style={styles.registerLinkText}>
-            Don't have an account? <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Register Here</Text>
+            Don't have an account? <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Register Here</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -201,10 +204,10 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
@@ -213,27 +216,27 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   title: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 42,
     fontWeight: '900',
     letterSpacing: 1,
   },
   subtitle: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 6,
     textAlign: 'center',
   },
   form: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
     elevation: 4,
   },
   label: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -241,18 +244,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     borderRadius: 10,
     height: 48,
-    color: '#F8FAFC',
+    color: colors.text,
     paddingHorizontal: 16,
     marginBottom: 20,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     height: 48,
     borderRadius: 10,
     justifyContent: 'center',
@@ -260,7 +263,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#2563EB',
+        shadowColor: colors.primary,
         shadowOpacity: 0.3,
         shadowRadius: 10,
       },
@@ -279,7 +282,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   registerLinkText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
   },
 });

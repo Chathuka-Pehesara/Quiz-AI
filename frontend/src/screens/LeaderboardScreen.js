@@ -1,3 +1,4 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -13,6 +14,8 @@ import Animated, { FadeInLeft, Layout } from 'react-native-reanimated';
 import { api } from '../services/api';
 
 export default function LeaderboardScreen({ navigation, route }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -70,7 +73,7 @@ export default function LeaderboardScreen({ navigation, route }) {
   const getLevelColor = (level) => {
     switch (level) {
       case 'Genius': return '#A855F7'; // Purple
-      case 'Gold': return '#F59E0B'; // Gold/Amber
+      case 'Gold': return colors.amber; // Gold/Amber
       case 'Silver': return '#94A3B8'; // Silver/Gray
       case 'Bronze':
       default:
@@ -220,15 +223,15 @@ export default function LeaderboardScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
@@ -240,7 +243,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
   },
   header: {
@@ -255,18 +258,18 @@ const styles = StyleSheet.create({
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   backBtnText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15.5,
     fontWeight: '800',
   },
@@ -278,29 +281,29 @@ const styles = StyleSheet.create({
   tabButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   activeTabButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     borderColor: '#6366F1',
   },
   tabButtonText: {
-    color: '#A1A1AA',
+    color: colors.textMuted,
     fontSize: 12.5,
     fontWeight: '700',
   },
   activeTabButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   weeklyToggleContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
     marginVertical: 12,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     padding: 3,
     borderRadius: 8,
   },
@@ -312,15 +315,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   activeToggleBtn: {
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
   },
   toggleBtnText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   activeToggleBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   listContainer: {
     padding: 16,
@@ -329,15 +332,15 @@ const styles = StyleSheet.create({
   leaderboardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   topRow: {
-    borderColor: '#F59E0B' + '40', // Highlight top 3 with golden border trace
+    borderColor: colors.amber + '40', // Highlight top 3 with golden border trace
   },
   rankContainer: {
     width: 32,
@@ -345,7 +348,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rankText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -356,15 +359,15 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#3F3F46',
+    borderColor: colors.border,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -374,7 +377,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   nameText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
@@ -394,12 +397,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   weeklyXpText: {
-    color: '#10B981',
+    color: colors.teal,
     fontSize: 14,
     fontWeight: '800',
   },
   totalXpText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 10.5,
     marginTop: 2,
   },
@@ -414,7 +417,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -423,7 +426,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyListText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13.5,
     textAlign: 'center',
   },

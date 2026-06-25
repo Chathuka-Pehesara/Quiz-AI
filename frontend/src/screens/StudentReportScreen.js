@@ -1,3 +1,4 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import * as Print from 'expo-print';
@@ -5,6 +6,8 @@ import * as Sharing from 'expo-sharing';
 import { api } from '../services/api';
 
 export default function StudentReportScreen({ navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -53,7 +56,7 @@ export default function StudentReportScreen({ navigation }) {
             .title {
               font-size: 28px;
               font-weight: 800;
-              color: #2563EB;
+              color: #6366F1;
               margin: 0;
             }
             .subtitle {
@@ -73,7 +76,7 @@ export default function StudentReportScreen({ navigation }) {
               font-size: 18px;
               font-weight: 700;
               color: #1E293B;
-              border-left: 4px solid #2563EB;
+              border-left: 4px solid #6366F1;
               padding-left: 10px;
               margin-bottom: 15px;
             }
@@ -93,7 +96,7 @@ export default function StudentReportScreen({ navigation }) {
             .card-val {
               font-size: 24px;
               font-weight: 800;
-              color: #2563EB;
+              color: #6366F1;
             }
             .card-lbl {
               font-size: 12px;
@@ -138,7 +141,7 @@ export default function StudentReportScreen({ navigation }) {
           </div>
 
           <div class="student-info">
-            Student Name: <span style="color: #2563EB;">${report.studentName}</span>
+            Student Name: <span style="color: #6366F1;">${report.studentName}</span>
           </div>
 
           <div class="grid">
@@ -175,7 +178,7 @@ export default function StudentReportScreen({ navigation }) {
                   <tr>
                     <td><strong>${course.code}</strong></td>
                     <td>${course.name}</td>
-                    <td><span style="color: ${course.averageScore >= 80 ? '#10B981' : course.averageScore >= 50 ? '#F59E0B' : '#EF4444'}; font-weight: bold;">${course.averageScore}%</span></td>
+                    <td><span style="color: ${course.averageScore >= 80 ? colors.teal : course.averageScore >= 50 ? colors.amber : colors.coral}; font-weight: bold;">${course.averageScore}%</span></td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -263,7 +266,7 @@ export default function StudentReportScreen({ navigation }) {
                 <Text style={styles.courseCode}>{c.code}</Text>
                 <Text style={styles.courseName}>{c.name}</Text>
               </View>
-              <Text style={[styles.courseAvg, { color: c.averageScore >= 80 ? '#10B981' : c.averageScore >= 50 ? '#F59E0B' : '#EF4444' }]}>
+              <Text style={[styles.courseAvg, { color: c.averageScore >= 80 ? colors.teal : c.averageScore >= 50 ? colors.amber : colors.coral }]}>
                 {c.averageScore}%
               </Text>
             </View>
@@ -273,8 +276,8 @@ export default function StudentReportScreen({ navigation }) {
 
       {/* Strengths & Weaknesses */}
       <View style={styles.topicGrid}>
-        <View style={[styles.topicCard, { borderColor: '#10B981' }]}>
-          <Text style={[styles.topicTitle, { color: '#10B981' }]}>Strongest Topics</Text>
+        <View style={[styles.topicCard, { borderColor: colors.teal }]}>
+          <Text style={[styles.topicTitle, { color: colors.teal }]}>Strongest Topics</Text>
           {report.strongestTopics.length === 0 ? (
             <Text style={styles.emptyText}>Not enough attempts yet.</Text>
           ) : (
@@ -284,8 +287,8 @@ export default function StudentReportScreen({ navigation }) {
           )}
         </View>
 
-        <View style={[styles.topicCard, { borderColor: '#EF4444' }]}>
-          <Text style={[styles.topicTitle, { color: '#EF4444' }]}>Weakest Topics</Text>
+        <View style={[styles.topicCard, { borderColor: colors.coral }]}>
+          <Text style={[styles.topicTitle, { color: colors.coral }]}>Weakest Topics</Text>
           {report.weakestTopics.length === 0 ? (
             <Text style={styles.emptyText}>Not enough attempts yet.</Text>
           ) : (
@@ -335,21 +338,21 @@ export default function StudentReportScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingTop: 40,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 14,
     marginTop: 12,
   },
@@ -364,49 +367,49 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
     position: 'absolute',
     left: 0,
     zIndex: 10,
   },
   backBtnText: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
   title: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
     flex: 1,
   },
   profileCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   studentLabel: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 6,
   },
   studentName: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 22,
     fontWeight: '850',
     marginBottom: 4,
   },
   studentLevel: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 13,
   },
   grid: {
@@ -416,20 +419,20 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   statVal: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 22,
     fontWeight: '900',
   },
   statLbl: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -439,7 +442,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '800',
     marginBottom: 10,
@@ -448,20 +451,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     padding: 12,
     borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   courseCode: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },
   courseName: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 12,
   },
   courseAvg: {
@@ -475,7 +478,7 @@ const styles = StyleSheet.create({
   },
   topicCard: {
     flex: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1.5,
@@ -486,13 +489,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   topicText: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 11,
     marginBottom: 4,
     lineHeight: 15,
   },
   badgeSub: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     marginBottom: 8,
   },
@@ -502,19 +505,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   badgePill: {
-    backgroundColor: '#334155',
+    backgroundColor: colors.border,
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 15,
   },
   badgeText: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 11,
     fontWeight: '600',
   },
   insightBox: {
     backgroundColor: '#1E3A8A' + '20',
-    borderColor: '#3B82F6' + '40',
+    borderColor: colors.primary + '40',
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
@@ -533,19 +536,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   pdfBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
     height: 48,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   pdfBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
   emptyText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
   },
 });

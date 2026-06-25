@@ -1,8 +1,11 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { connectSocket, getSocket } from '../services/socket';
 
 export default function BattleLobbyScreen({ route, navigation }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const { roomCode, quizId, user } = route.params; // If roomCode is null, we are the host. Otherwise we are the student joining
   const [currentCode, setCurrentCode] = useState(roomCode);
   const [players, setPlayers] = useState([]);
@@ -137,21 +140,21 @@ export default function BattleLobbyScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     paddingHorizontal: 24,
     paddingTop: 40,
   },
   center: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 14,
     marginTop: 12,
   },
@@ -160,18 +163,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 22,
     fontWeight: '800',
   },
   headerSub: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 4,
   },
   codeContainer: {
-    backgroundColor: '#1E293B',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.card,
+    borderColor: colors.primary,
     borderWidth: 2,
     borderRadius: 16,
     padding: 20,
@@ -179,7 +182,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     ...Platform.select({
       ios: {
-        shadowColor: '#3B82F6',
+        shadowColor: colors.primary,
         shadowOpacity: 0.1,
         shadowRadius: 10,
       },
@@ -189,7 +192,7 @@ const styles = StyleSheet.create({
     }),
   },
   codeLabel: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -197,13 +200,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   codeText: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 38,
     fontWeight: '900',
     letterSpacing: 2,
   },
   listTitle: {
-    color: '#F8FAFC',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 12,
@@ -217,11 +220,11 @@ const styles = StyleSheet.create({
   },
   playerCard: {
     flex: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 14,
     alignItems: 'center',
-    borderColor: '#334155',
+    borderColor: colors.border,
     borderWidth: 1,
     position: 'relative',
   },
@@ -230,7 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   playerName: {
-    color: '#E2E8F0',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -238,8 +241,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: '#3B82F6',
-    color: '#FFF',
+    backgroundColor: colors.primary,
+    color: colors.white,
     fontSize: 9,
     fontWeight: '800',
     paddingVertical: 2,
@@ -250,14 +253,14 @@ const styles = StyleSheet.create({
     marginVertical: 30,
   },
   startBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.teal,
     height: 50,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#10B981',
+        shadowColor: colors.teal,
         shadowOpacity: 0.3,
         shadowRadius: 10,
       },
@@ -267,7 +270,7 @@ const styles = StyleSheet.create({
     }),
   },
   startBtnText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -276,14 +279,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.card,
     height: 50,
     borderRadius: 12,
-    borderColor: '#334155',
+    borderColor: colors.border,
     borderWidth: 1,
   },
   waitingText: {
-    color: '#F59E0B',
+    color: colors.amber,
     fontSize: 13,
     fontWeight: '700',
   },

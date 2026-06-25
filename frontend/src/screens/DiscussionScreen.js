@@ -1,3 +1,4 @@
+import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -15,6 +16,8 @@ import Animated, { FadeInLeft, Layout } from 'react-native-reanimated';
 import { api } from '../services/api';
 
 export default function DiscussionScreen({ navigation, route }) {
+  const { colors, theme } = useTheme();
+  const styles = getStyles(colors, theme);
   const { questionId, questionText, quizId } = route.params;
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -220,10 +223,10 @@ export default function DiscussionScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   center: {
@@ -233,7 +236,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 13,
   },
   header: {
@@ -248,28 +251,28 @@ const styles = StyleSheet.create({
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   backBtnText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15.5,
     fontWeight: '800',
   },
   questionCard: {
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     margin: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   questionLabel: {
     color: '#818CF8',
@@ -279,7 +282,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   questionText: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 14.5,
     fontWeight: '600',
     lineHeight: 20,
@@ -289,18 +292,18 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   commentRow: {
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#262629',
+    borderColor: colors.border,
   },
   professorCommentRow: {
     borderColor: '#6366F1' + '40', // light purple highlight
   },
   pinnedCommentRow: {
-    borderColor: '#F59E0B' + '40', // light amber highlight
+    borderColor: colors.amber + '40', // light amber highlight
     backgroundColor: '#1C1917', // slightly warmer background
   },
   commentHeader: {
@@ -318,23 +321,23 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#27272A',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3F3F46',
+    borderColor: colors.border,
   },
   professorAvatar: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     borderColor: '#6366F1',
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11.5,
     fontWeight: '700',
   },
   senderName: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -342,7 +345,7 @@ const styles = StyleSheet.create({
     color: '#818CF8',
   },
   senderRole: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 10,
     marginTop: 1,
   },
@@ -366,14 +369,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   professorCommentText: {
-    color: '#F4F4F5',
+    color: colors.text,
     fontWeight: '500',
   },
   commentFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     borderTopWidth: 1,
-    borderTopColor: '#27272A',
+    borderTopColor: colors.border,
     paddingTop: 8,
   },
   upvoteButton: {
@@ -391,7 +394,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   upvoteCountText: {
-    color: '#A1A1AA',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -406,11 +409,11 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#161618',
+    backgroundColor: colors.card,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#262629',
-    color: '#FFFFFF',
+    borderColor: colors.border,
+    color: colors.white,
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 8,
@@ -418,7 +421,7 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
   },
   sendButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: colors.primary,
     paddingVertical: 9,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -429,7 +432,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1A2E',
   },
   sendButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -443,13 +446,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyTitle: {
-    color: '#E4E4E7',
+    color: colors.text,
     fontSize: 14.5,
     fontWeight: '700',
     marginBottom: 6,
   },
   emptyText: {
-    color: '#71717A',
+    color: colors.textMuted,
     fontSize: 12.5,
     textAlign: 'center',
     lineHeight: 18,
