@@ -11,7 +11,8 @@ import {
   Modal,
   RefreshControl,
   Platform,
-  Pressable
+  Pressable,
+  Dimensions
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import Animated, {
@@ -33,8 +34,10 @@ import { scheduleSmartReminders } from '../utils/notifications';
 import { getSocket, connectSocket } from '../services/socket';
 import { useTheme } from '../context/ThemeContext';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 // 1. Premium springy scale pressable with subtle opacity changes
-const AnimatedPressable = ({ children, onPress, style, disabled }) => {
+const AnimatedPressable = ({ children, onPress, style, containerStyle, disabled }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
@@ -47,6 +50,7 @@ const AnimatedPressable = ({ children, onPress, style, disabled }) => {
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      style={containerStyle}
       onPressIn={() => {
         if (!disabled) {
           scale.value = withSpring(0.96, { damping: 10, stiffness: 200 });
@@ -72,13 +76,32 @@ const ExpandableDeck = ({ title, icon, badge, isOpen, onToggle, children }) => {
   const { colors, theme } = useTheme();
   const styles = getStyles(colors, theme);
   const rotation = useSharedValue(0);
+  const activePulse = useSharedValue(1);
 
   useEffect(() => {
     rotation.value = withSpring(isOpen ? 180 : 0, { damping: 15 });
+
+    if (isOpen) {
+      activePulse.value = withRepeat(
+        withSequence(
+          withTiming(1.12, { duration: 950 }),
+          withTiming(1.0, { duration: 950 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      activePulse.value = withSpring(1);
+    }
   }, [isOpen]);
 
   const arrowStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  const iconBgStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: activePulse.value }],
+    backgroundColor: isOpen ? colors.primary + '28' : colors.primary + '15',
   }));
 
   return (
@@ -94,9 +117,9 @@ const ExpandableDeck = ({ title, icon, badge, isOpen, onToggle, children }) => {
         style={styles.deckHeader}
       >
         <View style={styles.deckHeaderLeft}>
-          <View style={[styles.deckIconBg, isOpen && styles.deckIconBgActive]}>
+          <Animated.View style={[styles.deckIconBg, iconBgStyle]}>
             {icon}
-          </View>
+          </Animated.View>
           <View style={{ flex: 1 }}>
             <Text style={styles.deckTitle}>{title}</Text>
             {badge ? (
@@ -120,6 +143,161 @@ const ExpandableDeck = ({ title, icon, badge, isOpen, onToggle, children }) => {
         </Animated.View>
       )}
     </Animated.View>
+  );
+};
+
+// 3. Highly detailed, cute cybernetic AI Mascot component with mechanical animations
+const MascotCharacter = ({ colors, theme, onShowSuggestions }) => {
+  const styles = getStyles(colors, theme);
+  const floatAnim = useSharedValue(0);
+  const charX = useSharedValue(0);
+  const charY = useSharedValue(0);
+  const charRotate = useSharedValue(0);
+  const scale = useSharedValue(1);
+
+  // Mascot mechanical hover loops
+  const eyeBlink = useSharedValue(1);
+  const headTilt = useSharedValue(0);
+  const flameScale = useSharedValue(1);
+
+  useEffect(() => {
+    // 1. Idle vertical bobbing
+    floatAnim.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1800 }),
+        withTiming(0, { duration: 1800 })
+      ),
+      -1,
+      true
+    );
+
+    // 2. Idle helmet head sway
+    headTilt.value = withRepeat(
+      withSequence(
+        withTiming(4, { duration: 2000 }),
+        withTiming(-4, { duration: 2000 })
+      ),
+      -1,
+      true
+    );
+
+    // 3. Cyber eye blinking every 4 seconds
+    eyeBlink.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 3800 }),
+        withTiming(0.1, { duration: 120 }),
+        withTiming(1, { duration: 120 })
+      ),
+      -1,
+      false
+    );
+
+    // 4. Amber hover thruster fire flickering
+    flameScale.value = withRepeat(
+      withSequence(
+        withTiming(1.3, { duration: 200 }),
+        withTiming(0.7, { duration: 200 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const flightAnimation = () => {
+    // High-speed flight trajectory around the viewport ending in a sudden snap
+    charX.value = withSequence(
+      withTiming(-SCREEN_WIDTH * 0.75, { duration: 350 }),
+      withTiming(SCREEN_WIDTH * 0.15, { duration: 300 }),
+      withTiming(-SCREEN_WIDTH * 0.45, { duration: 350 }),
+      withTiming(SCREEN_WIDTH * 0.25, { duration: 300 }),
+      withTiming(0, { duration: 200 })
+    );
+    charY.value = withSequence(
+      withTiming(-SCREEN_HEIGHT * 0.55, { duration: 350 }),
+      withTiming(-SCREEN_HEIGHT * 0.15, { duration: 300 }),
+      withTiming(-SCREEN_HEIGHT * 0.65, { duration: 350 }),
+      withTiming(-SCREEN_HEIGHT * 0.35, { duration: 300 }),
+      withTiming(0, { duration: 200 })
+    );
+    charRotate.value = withSequence(
+      withTiming(720, { duration: 650 }),
+      withTiming(-360, { duration: 550 }),
+      withTiming(0, { duration: 200 })
+    );
+  };
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const floatOffset = Math.sin(floatAnim.value * Math.PI) * 6;
+    return {
+      transform: [
+        { translateX: charX.value },
+        { translateY: charY.value + floatOffset },
+        { rotate: `${charRotate.value}deg` },
+        { scale: scale.value }
+      ]
+    };
+  });
+
+  const headStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${headTilt.value}deg` }]
+  }));
+
+  const eyeAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleY: eyeBlink.value }]
+  }));
+
+  const flameStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scaleY: flameScale.value },
+      { scaleX: flameScale.value * 0.85 }
+    ],
+    opacity: 0.6 + Math.sin(flameScale.value * Math.PI) * 0.4
+  }));
+
+  return (
+    <Pressable
+      onPress={() => {
+        flightAnimation();
+        setTimeout(() => {
+          onShowSuggestions();
+        }, 1500);
+      }}
+      onPressIn={() => { scale.value = withSpring(0.85); }}
+      onPressOut={() => { scale.value = withSpring(1.0); }}
+      style={styles.mascotContainer}
+    >
+      <Animated.View style={[styles.mascot, animatedStyle]}>
+        {/* Floating detached limbs */}
+        <View style={styles.mascotLeftShoulder} />
+        <View style={styles.mascotRightShoulder} />
+
+        {/* Head Helmet with sway tilt */}
+        <Animated.View style={[styles.mascotHeadContainer, headStyle]}>
+          <View style={styles.mascotHelmet}>
+            <View style={styles.mascotHelmetVisor}>
+              {/* Blinking cyber eyes */}
+              <Animated.View style={[styles.mascotEyesRow, eyeAnimStyle]}>
+                <View style={styles.mascotCyanEye} />
+                <View style={styles.mascotCyanEye} />
+              </Animated.View>
+              {/* Cute digital smile */}
+              <View style={styles.mascotSmile} />
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Capsule Body with power core */}
+        <View style={styles.mascotBodyContainer}>
+          <View style={styles.mascotChestCore}>
+            <View style={styles.mascotPulsingHeart} />
+          </View>
+        </View>
+
+        {/* Jet Thruster Exhaust Flame */}
+        <View style={styles.mascotThrusterNozzle} />
+        <Animated.View style={[styles.mascotJetFlame, flameStyle]} />
+      </Animated.View>
+    </Pressable>
   );
 };
 
@@ -161,6 +339,9 @@ export default function StudentDashboard({ navigation }) {
   const [modalQuizzes, setModalQuizzes] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
 
+  // Suggestions Modal State
+  const [suggestionsModalVisible, setSuggestionsModalVisible] = useState(false);
+
   // Social & Community State
   const [activityFeed, setActivityFeed] = useState([]);
   const [activeDuels, setActiveDuels] = useState([]);
@@ -178,6 +359,16 @@ export default function StudentDashboard({ navigation }) {
 
   // Daily streak pulse animation
   const streakScale = useSharedValue(1);
+
+  // Breathing animation for progress bars
+  const barBreathing = useSharedValue(1);
+
+  // ------------------ MOVIE-STYLE ICON LOOPS ------------------
+  const bobAnim = useSharedValue(0);
+  const spinAnim = useSharedValue(0);
+  const pulseAnim = useSharedValue(1);
+  const tiltAnim = useSharedValue(0);
+  const glowAnim = useSharedValue(1);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -197,13 +388,72 @@ export default function StudentDashboard({ navigation }) {
 
     // Start background float loop
     float1.value = withRepeat(withTiming(1, { duration: 12000 }), -1, true);
-    float2.value = withRepeat(withTiming(1, { duration: 16000 }), -1, true);
+    float2.value = withRepeat(withTiming(1, { duration: 1600 }), -1, true);
 
     // Start daily streak pulse loop
     streakScale.value = withRepeat(
       withSequence(
         withTiming(1.08, { duration: 1000 }),
         withTiming(1, { duration: 1000 })
+      ),
+      -1,
+      true
+    );
+
+    // Start progress bar breathing loop
+    barBreathing.value = withRepeat(
+      withSequence(
+        withTiming(0.82, { duration: 1400 }),
+        withTiming(1.0, { duration: 1400 })
+      ),
+      -1,
+      true
+    );
+
+    // 1. Bobbing Translation loop (1.5s bob)
+    bobAnim.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1500 }),
+        withTiming(0, { duration: 1500 })
+      ),
+      -1,
+      true
+    );
+
+    // 2. Continuous Spin loop (4.0s full rotation)
+    spinAnim.value = withRepeat(
+      withTiming(360, { duration: 4000 }),
+      -1,
+      false
+    );
+
+    // 3. Breathing Scale pulse loop
+    pulseAnim.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 1200 }),
+        withTiming(1.0, { duration: 1200 })
+      ),
+      -1,
+      true
+    );
+
+    // 4. Swaying Tilt loop
+    tiltAnim.value = withRepeat(
+      withSequence(
+        withTiming(6, { duration: 1600 }),
+        withTiming(-6, { duration: 1600 })
+      ),
+      -1,
+      true
+    );
+
+    // 5. Glowing Bulb Flicker loop
+    glowAnim.value = withRepeat(
+      withSequence(
+        withTiming(0.55, { duration: 180 }),
+        withTiming(1.0, { duration: 120 }),
+        withTiming(0.65, { duration: 220 }),
+        withTiming(1.0, { duration: 160 })
       ),
       -1,
       true
@@ -223,6 +473,10 @@ export default function StudentDashboard({ navigation }) {
     transform: [{ scale: streakScale.value }]
   }));
 
+  const barBreathingStyle = useAnimatedStyle(() => ({
+    opacity: barBreathing.value,
+  }));
+
   const floatStyle1 = useAnimatedStyle(() => ({
     transform: [
       { translateX: Math.sin(float1.value * Math.PI * 2) * 20 },
@@ -237,6 +491,53 @@ export default function StudentDashboard({ navigation }) {
       { translateY: Math.sin(float2.value * Math.PI * 2) * 20 }
     ],
     opacity: theme === 'dark' ? 0.06 : 0.03
+  }));
+
+  // ------------------ MOVIE-STYLE MAPPED ANIMATION STYLES ------------------
+  const quizzesIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spinAnim.value}deg` }]
+  }));
+
+  const scoreIconStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: Math.sin(bobAnim.value * Math.PI) * 4 }]
+  }));
+
+  const badgeIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseAnim.value }]
+  }));
+
+  const hubTrophyStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${tiltAnim.value}deg` },
+      { scale: pulseAnim.value }
+    ]
+  }));
+
+  const hubPeopleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: Math.sin(bobAnim.value * Math.PI) * 4 }]
+  }));
+
+  const hubCalendarStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${-tiltAnim.value}deg` }]
+  }));
+
+  const deckBulbStyle = useAnimatedStyle(() => ({
+    opacity: openDecks.ai ? glowAnim.value : 0.85,
+    transform: [{ scale: openDecks.ai ? pulseAnim.value : 1.0 }]
+  }));
+
+  const deckControllerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: openDecks.multiplayer ? `${tiltAnim.value * 1.5}deg` : '0deg' },
+      { scale: openDecks.multiplayer ? pulseAnim.value : 1.0 }
+    ]
+  }));
+
+  const deckSchoolStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: openDecks.academics ? Math.sin(bobAnim.value * Math.PI) * 4 : 0 },
+      { scale: openDecks.academics ? pulseAnim.value : 1.0 }
+    ]
   }));
 
   useEffect(() => {
@@ -596,7 +897,7 @@ export default function StudentDashboard({ navigation }) {
           </View>
 
           <View style={styles.xpBarBg}>
-            <Animated.View style={[styles.xpBarFill, animatedProgressStyle]} />
+            <Animated.View style={[styles.xpBarFill, animatedProgressStyle, barBreathingStyle]} />
           </View>
 
           <View style={styles.xpFooter}>
@@ -609,63 +910,66 @@ export default function StudentDashboard({ navigation }) {
           </View>
         </View>
 
-        {/* Action Hub Row - Springy Grid */}
+        {/* Action Hub Row - Spacing Fixed (Distributed correctly with sway/bob loops) */}
         <View style={styles.actionHubRow}>
           <AnimatedPressable
+            containerStyle={{ flex: 1 }}
             style={styles.hubBtn}
             onPress={() => navigation.navigate('Leaderboard')}
           >
-            <View style={[styles.hubIconBg, { backgroundColor: colors.amber + '18' }]}>
+            <Animated.View style={[styles.hubIconBg, { backgroundColor: colors.amber + '18' }, hubTrophyStyle]}>
               <Ionicons name="trophy" size={20} color={colors.amber} />
-            </View>
+            </Animated.View>
             <Text style={styles.hubBtnText}>Leaderboards</Text>
           </AnimatedPressable>
 
           <AnimatedPressable
+            containerStyle={{ flex: 1 }}
             style={styles.hubBtn}
             onPress={() => navigation.navigate('GroupsList')}
           >
-            <View style={[styles.hubIconBg, { backgroundColor: colors.primary + '18' }]}>
+            <Animated.View style={[styles.hubIconBg, { backgroundColor: colors.primary + '18' }, hubPeopleStyle]}>
               <Ionicons name="people" size={20} color={colors.primary} />
-            </View>
+            </Animated.View>
             <Text style={styles.hubBtnText}>Study Groups</Text>
           </AnimatedPressable>
 
           <AnimatedPressable
+            containerStyle={{ flex: 1 }}
             style={styles.hubBtn}
             onPress={() => navigation.navigate('StudyPlanner')}
           >
-            <View style={[styles.hubIconBg, { backgroundColor: colors.teal + '18' }]}>
+            <Animated.View style={[styles.hubIconBg, { backgroundColor: colors.teal + '18' }, hubCalendarStyle]}>
               <Ionicons name="calendar" size={20} color={colors.teal} />
-            </View>
+            </Animated.View>
             <Text style={styles.hubBtnText}>AI Study Plan</Text>
           </AnimatedPressable>
         </View>
 
-        {/* Stats Grid Dashboard Card */}
+        {/* Stats Grid Dashboard Card with Looping Animated Icons */}
         <View style={styles.statsCard}>
           <View style={styles.statColumn}>
-            <View style={[styles.statIconCircle, { backgroundColor: colors.primary + '12' }]}>
+            <Animated.View style={[styles.statIconCircle, { backgroundColor: colors.primary + '12' }, quizzesIconStyle]}>
               <Ionicons name="checkmark-circle-outline" size={16} color={colors.primary} />
-            </View>
+            </Animated.View>
             <Text style={styles.statLabel}>Quizzes</Text>
             <Text style={styles.statValue}>{quizzesCount}</Text>
           </View>
           <View style={styles.statDivider} />
 
           <View style={styles.statColumn}>
-            <View style={[styles.statIconCircle, { backgroundColor: colors.teal + '12' }]}>
+            <Animated.View style={[styles.statIconCircle, { backgroundColor: colors.teal + '12' }, scoreIconStyle]}>
               <Ionicons name="ribbon-outline" size={16} color={colors.teal} />
-            </View>
+            </Animated.View>
             <Text style={styles.statLabel}>Avg Score</Text>
             <Text style={[styles.statValue, { color: colors.teal }]}>{avgScore}%</Text>
           </View>
           <View style={styles.statDivider} />
 
           <View style={styles.statColumn}>
-            <View style={[styles.statIconCircle, { backgroundColor: colors.amber + '12' }]}>
+            <Animated.View style={[styles.statIconCircle, { backgroundColor: colors.amber + '12' }, badgeIconStyle]}>
               <Ionicons name="trophy-outline" size={16} color={colors.amber} />
-            </View>
+            </Animated.View>
             <Text style={styles.statLabel}>Badges</Text>
             <Text style={[styles.statValue, { color: colors.amber }]}>{badgesCount}</Text>
           </View>
@@ -674,7 +978,7 @@ export default function StudentDashboard({ navigation }) {
         {/* -------------------- DECK 1: COGNITIVE HUB -------------------- */}
         <ExpandableDeck
           title="Cognitive Hub"
-          icon={<MaterialCommunityIcons name="brain" size={20} color={colors.primary} />}
+          icon={<Animated.View style={deckBulbStyle}><Ionicons name="bulb-outline" size={20} color={colors.primary} /></Animated.View>}
           badge={dueTopics.length > 0 ? `${dueTopics.length} Review Topic${dueTopics.length === 1 ? '' : 's'}` : null}
           isOpen={openDecks.ai}
           onToggle={() => toggleDeck('ai')}
@@ -718,7 +1022,7 @@ export default function StudentDashboard({ navigation }) {
           {/* AI Insight Card */}
           <View style={styles.insightCard}>
             <View style={styles.insightHeaderRow}>
-              <MaterialCommunityIcons name="lightning-bolt" size={15} color={colors.primary} />
+              <Ionicons name="flash-outline" size={15} color={colors.primary} />
               <Text style={styles.insightLabel}>AI Insights Console</Text>
             </View>
 
@@ -788,7 +1092,7 @@ export default function StudentDashboard({ navigation }) {
         {/* -------------------- DECK 2: MULTIPLAYER ARENA -------------------- */}
         <ExpandableDeck
           title="Multiplayer Arena"
-          icon={<MaterialCommunityIcons name="sword-cross" size={20} color={colors.coral} />}
+          icon={<Animated.View style={deckControllerStyle}><Ionicons name="game-controller-outline" size={20} color={colors.coral} /></Animated.View>}
           badge={(!platformSettings || platformSettings.toggles?.liveBattles !== false) ? `${activeDuels.length} Active Duel${activeDuels.length === 1 ? '' : 's'}` : null}
           isOpen={openDecks.multiplayer}
           onToggle={() => toggleDeck('multiplayer')}
@@ -799,7 +1103,7 @@ export default function StudentDashboard({ navigation }) {
               <View style={styles.arenaSubcard}>
                 <View style={styles.subcardHeader}>
                   <View style={styles.subcardTitleRow}>
-                    <Ionicons name="people-circle" size={18} color={colors.text} />
+                    <Ionicons name="people-circle-outline" size={18} color={colors.text} />
                     <Text style={styles.subcardTitle}>1v1 Async Duels</Text>
                   </View>
                   <AnimatedPressable
@@ -871,7 +1175,7 @@ export default function StudentDashboard({ navigation }) {
               <View style={styles.arenaSubcard}>
                 <View style={styles.subcardHeader}>
                   <View style={styles.subcardTitleRow}>
-                    <Ionicons name="flash" size={16} color={colors.amber} />
+                    <Ionicons name="flash-outline" size={16} color={colors.amber} />
                     <Text style={styles.subcardTitle}>Live Quiz Battles</Text>
                   </View>
                   <View style={styles.liveBadge}>
@@ -938,7 +1242,7 @@ export default function StudentDashboard({ navigation }) {
         {/* -------------------- DECK 3: ACADEMIC CONSOLE -------------------- */}
         <ExpandableDeck
           title="Academic Console"
-          icon={<Ionicons name="school" size={20} color={colors.teal} />}
+          icon={<Animated.View style={deckSchoolStyle}><Ionicons name="school-outline" size={20} color={colors.teal} /></Animated.View>}
           badge={`${courses.length} Course${courses.length === 1 ? '' : 's'} Enrolled`}
           isOpen={openDecks.academics}
           onToggle={() => toggleDeck('academics')}
@@ -1000,11 +1304,12 @@ export default function StudentDashboard({ navigation }) {
                     </View>
                   </View>
 
-                  {/* Progress Bar with glow */}
+                  {/* Progress Bar with breathing glow */}
                   <View style={styles.courseProgressBarBg}>
-                    <View
+                    <Animated.View
                       style={[
                         styles.courseProgressBarFill,
+                        barBreathingStyle,
                         {
                           width: `${course.avgScore}%`,
                           backgroundColor: getProgressBarColor(course.avgScore)
@@ -1029,6 +1334,86 @@ export default function StudentDashboard({ navigation }) {
           )}
         </ExpandableDeck>
       </ScrollView>
+
+      {/* Floating AI Mascot ("Quizy") */}
+      <MascotCharacter
+        colors={colors}
+        theme={theme}
+        onShowSuggestions={() => setSuggestionsModalVisible(true)}
+      />
+
+      {/* Futuristic Suggestions Hologram Modal */}
+      <Modal
+        visible={suggestionsModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setSuggestionsModalVisible(false)}
+      >
+        <View style={styles.holoOverlay}>
+          <Animated.View style={styles.holoContent} entering={FadeInDown}>
+            <View style={styles.holoHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="planet" size={20} color={colors.primary} />
+                <Text style={styles.holoTitleText}>AI Career Hologram</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseIconBtn}
+                onPress={() => setSuggestionsModalVisible(false)}
+              >
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.holoSubtitle}>Mascot "Quizy" generated blueprint recommendations based on your profile:</Text>
+
+            <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+              {/* Suggestion Card 1 */}
+              <View style={[styles.holoCard, { borderColor: colors.primary }]}>
+                <View style={styles.holoCardHeader}>
+                  <Ionicons name="rocket-outline" size={16} color={colors.primary} />
+                  <Text style={styles.holoCardTitle}>Constructing Career Self</Text>
+                </View>
+                <Text style={styles.holoCardBody}>
+                  With an average score of <Text style={{ fontWeight: '800', color: colors.primary }}>{avgScore}%</Text> and high accuracy in {dashboardData?.aiInsight?.weakTopic || 'Database Normalization'}, AI projects your natural path as a <Text style={{ fontWeight: '800', color: colors.primary }}>Database Architect</Text>. Build future projects around indexing and transaction management.
+                </Text>
+              </View>
+
+              {/* Suggestion Card 2 */}
+              <View style={[styles.holoCard, { borderColor: colors.teal }]}>
+                <View style={styles.holoCardHeader}>
+                  <Ionicons name="hardware-chip-outline" size={16} color={colors.teal} />
+                  <Text style={styles.holoCardTitle}>Skill Accelerator Pathway</Text>
+                </View>
+                <Text style={styles.holoCardBody}>
+                  Your weak topic is currently identified as <Text style={{ fontWeight: '800', color: colors.coral }}>{dashboardData?.aiInsight?.weakTopic || 'Database Normalization'}</Text>. Target practicing adaptive quizzes on this topic to level up your global platform rank to Gold.
+                </Text>
+              </View>
+
+              {/* Suggestion Card 3 */}
+              <View style={[styles.holoCard, { borderColor: colors.amber }]}>
+                <View style={styles.holoCardHeader}>
+                  <Ionicons name="construct-outline" size={16} color={colors.amber} />
+                  <Text style={styles.holoCardTitle}>Micro-Habit Blueprint</Text>
+                </View>
+                <Text style={styles.holoCardBody}>
+                  Take a 5-minute study quiz daily at 8:00 AM. Spacing review topics at regular intervals helps construct long-term memory structures, giving you a strong foundation for future technical interviews.
+                </Text>
+              </View>
+            </ScrollView>
+
+            <AnimatedPressable
+              style={styles.holoActionBtn}
+              onPress={() => {
+                setSuggestionsModalVisible(false);
+                handlePracticeWeakTopic();
+              }}
+            >
+              <Text style={styles.holoActionText}>Initiate Skill Accelerator Quiz</Text>
+              <Ionicons name="flash" size={14} color={colors.white} />
+            </AnimatedPressable>
+          </Animated.View>
+        </View>
+      </Modal>
 
       {/* Quizzes Selection Modal */}
       <Modal
@@ -1396,7 +1781,7 @@ const getStyles = (colors, theme) => {
       marginBottom: 16,
     },
     hubBtn: {
-      flex: 1,
+      width: '100%',
       backgroundColor: colors.card,
       borderColor: colors.border,
       borderWidth: 1,
@@ -1468,16 +1853,23 @@ const getStyles = (colors, theme) => {
       backgroundColor: colors.border,
     },
     deckCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
       borderWidth: 1,
       borderRadius: 16,
       marginBottom: 12,
       overflow: 'hidden',
+      shadowColor: colors.black,
       shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.15 : 0.03,
       shadowRadius: 8,
       elevation: 2,
     },
     deckCardActive: {
+      borderColor: colors.primary,
       borderWidth: 1.2,
+      shadowColor: colors.primary,
+      shadowOpacity: isDark ? 0.2 : 0.08,
     },
     deckHeader: {
       flexDirection: 'row',
@@ -1499,12 +1891,10 @@ const getStyles = (colors, theme) => {
       justifyContent: 'center',
       alignItems: 'center',
     },
-    deckIconBgActive: {
-      transform: [{ scale: 1.05 }],
-    },
     deckTitle: {
       fontSize: 14,
       fontWeight: '800',
+      color: colors.text,
     },
     deckBadgeContainer: {
       alignSelf: 'flex-start',
@@ -2125,6 +2515,231 @@ const getStyles = (colors, theme) => {
     },
     disabledModalStartBtn: {
       backgroundColor: isDark ? '#1C1A2E' : '#E2E8F0',
+    },
+    // Cute AI Hover-Droid Mascot Styles
+    mascotContainer: {
+      position: 'absolute',
+      bottom: 25,
+      right: 20,
+      zIndex: 999,
+    },
+    mascot: {
+      width: 60,
+      height: 75,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    mascotLeftShoulder: {
+      position: 'absolute',
+      left: 0,
+      top: 36,
+      width: 6,
+      height: 12,
+      borderRadius: 3,
+      backgroundColor: '#94A3B8',
+      borderWidth: 1,
+      borderColor: colors.white,
+    },
+    mascotRightShoulder: {
+      position: 'absolute',
+      right: 0,
+      top: 36,
+      width: 6,
+      height: 12,
+      borderRadius: 3,
+      backgroundColor: '#94A3B8',
+      borderWidth: 1,
+      borderColor: colors.white,
+    },
+    mascotHeadContainer: {
+      width: 42,
+      height: 32,
+      alignItems: 'center',
+      zIndex: 2,
+    },
+    mascotHelmet: {
+      width: 40,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: isDark ? '#E2E8F0' : '#FFFFFF',
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      padding: 2.5,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+    },
+    mascotHelmetVisor: {
+      flex: 1,
+      borderRadius: 11,
+      backgroundColor: '#0F172A',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingBottom: 2,
+    },
+    mascotEyesRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 3,
+    },
+    mascotCyanEye: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: '#22D3EE',
+      shadowColor: '#22D3EE',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.8,
+      shadowRadius: 4,
+    },
+    mascotSmile: {
+      width: 10,
+      height: 2,
+      backgroundColor: '#22D3EE',
+      borderRadius: 1,
+      marginTop: 1,
+    },
+    mascotBodyContainer: {
+      width: 32,
+      height: 24,
+      backgroundColor: isDark ? '#E2E8F0' : '#FFFFFF',
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      borderRadius: 12,
+      marginTop: -2,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    },
+    mascotChestCore: {
+      width: 14,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: '#1E293B',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    mascotPulsingHeart: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.coral,
+      shadowColor: colors.coral,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.9,
+      shadowRadius: 3,
+    },
+    mascotThrusterNozzle: {
+      width: 10,
+      height: 4,
+      backgroundColor: '#64748B',
+      borderBottomLeftRadius: 3,
+      borderBottomRightRadius: 3,
+      marginTop: -1,
+      zIndex: 0,
+    },
+    mascotJetFlame: {
+      width: 8,
+      height: 14,
+      backgroundColor: '#F59E0B',
+      borderBottomLeftRadius: 4,
+      borderBottomRightRadius: 4,
+      shadowColor: '#F59E0B',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.9,
+      shadowRadius: 6,
+    },
+    // Holographic Suggestions Modal Styles
+    holoOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(9, 13, 22, 0.85)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    holoContent: {
+      width: '100%',
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderRadius: 24,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      padding: 20,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.3,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    holoHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      paddingBottom: 10,
+    },
+    holoTitleText: {
+      fontSize: 16.5,
+      fontWeight: '900',
+      color: colors.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    holoSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 16,
+      marginBottom: 16,
+    },
+    holoCard: {
+      borderWidth: 1,
+      borderRadius: 14,
+      backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+      padding: 12,
+      marginBottom: 10,
+    },
+    holoCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
+    holoCardTitle: {
+      fontSize: 11.5,
+      fontWeight: '800',
+      color: colors.text,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    holoCardBody: {
+      fontSize: 11.5,
+      color: colors.textMuted,
+      lineHeight: 16,
+    },
+    holoActionBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 14,
+      paddingVertical: 12,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 14,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 6,
+    },
+    holoActionText: {
+      color: colors.white,
+      fontSize: 12.5,
+      fontWeight: '800',
     },
   });
 };
