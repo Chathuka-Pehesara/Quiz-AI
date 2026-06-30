@@ -93,7 +93,7 @@ export default function QuizAnalyticsScreen({ route, navigation }) {
         ) : (
           <View style={{ alignItems: 'center', marginLeft: -20 }}>
             <VictoryChart
-              theme={VictoryTheme.material}
+              theme={VictoryTheme?.material}
               domain={{ y: [0, maxVal + 1] }}
               height={220}
               width={340}
