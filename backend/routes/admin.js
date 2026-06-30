@@ -18,13 +18,19 @@ const getSettings = () => {
   try {
     const data = fs.readFileSync(SETTINGS_PATH, 'utf8');
     const settings = JSON.parse(data);
-    settings.claudeApiKeyConfigured = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    const hasClaude = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    const hasGemini = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here';
+    settings.claudeApiKeyConfigured = hasClaude || hasGemini;
+    settings.activeAiProvider = hasClaude ? 'Claude' : (hasGemini ? 'Gemini' : 'None');
     return settings;
   } catch (err) {
+    const hasClaude = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    const hasGemini = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here';
     return {
       universityName: "QuizAI University",
       adminEmail: "admin@quizai.edu",
-      claudeApiKeyConfigured: false,
+      claudeApiKeyConfigured: hasClaude || hasGemini,
+      activeAiProvider: hasClaude ? 'Claude' : (hasGemini ? 'Gemini' : 'None'),
       questionsPerUpload: 5,
       questionTypes: ["mcq", "tf", "short"],
       antiCheatSensitivity: 75,
@@ -362,7 +368,10 @@ router.get('/settings', async (req, res) => {
       await settings.save();
     }
     const settingsObj = settings.toObject();
-    settingsObj.claudeApiKeyConfigured = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    const hasClaude = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    const hasGemini = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here';
+    settingsObj.claudeApiKeyConfigured = hasClaude || hasGemini;
+    settingsObj.activeAiProvider = hasClaude ? 'Claude' : (hasGemini ? 'Gemini' : 'None');
     res.json(settingsObj);
   } catch (err) {
     console.error('Failed to get settings:', err);
@@ -394,7 +403,10 @@ router.put('/settings', auth('admin'), async (req, res) => {
     await settings.save();
     
     const settingsObj = settings.toObject();
-    settingsObj.claudeApiKeyConfigured = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    const hasClaude = !!process.env.CLAUDE_API_KEY && process.env.CLAUDE_API_KEY !== 'your_claude_api_key_here';
+    const hasGemini = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here';
+    settingsObj.claudeApiKeyConfigured = hasClaude || hasGemini;
+    settingsObj.activeAiProvider = hasClaude ? 'Claude' : (hasGemini ? 'Gemini' : 'None');
     res.json(settingsObj);
   } catch (err) {
     console.error('Failed to save settings:', err);

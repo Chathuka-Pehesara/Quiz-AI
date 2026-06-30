@@ -1,5 +1,9 @@
-const apiKey = process.env.CLAUDE_API_KEY;
-const isKeyMissing = !apiKey || apiKey === 'your_claude_api_key_here';
+const claudeApiKey = process.env.CLAUDE_API_KEY;
+const geminiApiKey = process.env.GEMINI_API_KEY;
+
+const isClaudeConfigured = claudeApiKey && claudeApiKey !== 'your_claude_api_key_here';
+const isGeminiConfigured = geminiApiKey && geminiApiKey !== 'your_gemini_api_key_here';
+const isKeyMissing = !isClaudeConfigured && !isGeminiConfigured;
 
 // Helper to fetch with retries and exponential backoff
 const fetchWithRetry = async (url, options, retries = 3, delay = 1000) => {
@@ -12,7 +16,7 @@ const fetchWithRetry = async (url, options, retries = 3, delay = 1000) => {
     return response;
   } catch (err) {
     if (retries > 0) {
-      console.warn(`Claude API call failed. Retrying in ${delay}ms... (${retries} retries left). Error: ${err.message}`);
+      console.warn(`API call failed. Retrying in ${delay}ms... (${retries} retries left). Error: ${err.message}`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return fetchWithRetry(url, options, retries - 1, delay * 2);
     }
@@ -21,51 +25,92 @@ const fetchWithRetry = async (url, options, retries = 3, delay = 1000) => {
 };
 
 /**
- * Generate quiz questions based on lecture note inputs.
+ * Unified AI fetch helper supporting both Claude and Gemini API formats.
  */
-async function generateQuestions(textInput, numQuestions = 5) {
-  if (isKeyMissing) {
-    console.warn('Claude API key is not configured. Falling back to local AI simulation.');
-    return getSimulatedQuestions(textInput, numQuestions);
-  }
-
-  try {
+async function callAI({ system, user, temperature = 0.5, maxTokens, responseFormatJson = false }) {
+  if (isClaudeConfigured) {
     const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
+        'x-api-key': claudeApiKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        temperature: 0.2,
-        system: `You are an expert university professor creating a quiz. Analyze the provided study material. Generate exactly ${numQuestions} distinct questions. Return ONLY a valid JSON array matching this typescript interface:
-        interface Question {
-          text: string;
-          type: 'mcq' | 'short' | 'tf';
-          options: string[]; // 4 items if type is mcq, empty array if tf or short
-          correctAnswer: string; // the option text for mcq, "True" or "False" for tf, or short keyword for short
-          explanation: string; // plain-English explanation of why the correctAnswer is correct and what the concept actually is. Limit to 2 sentences.
-          difficulty: number; // integer from 1 (easiest) to 5 (hardest)
-          topic: string; // 1-3 words topic representing the core question theme
-        }
-        Provide no additional introductory text, conversational comments, or explanations outside the JSON array. Output raw JSON code.`,
-        messages: [
-          { role: 'user', content: `Create a quiz based on this content:\n\n${textInput}` }
-        ]
+        max_tokens: maxTokens || 1000,
+        temperature: temperature,
+        system: system,
+        messages: [{ role: 'user', content: user }]
       })
     });
-
     const data = await response.json();
-    const rawText = data.content[0].text;
+    return data.content[0].text;
+  } else if (isGeminiConfigured) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+    const body = {
+      contents: [{ role: 'user', parts: [{ text: user }] }],
+      systemInstruction: { parts: [{ text: system }] },
+      generationConfig: {
+        temperature: temperature
+      }
+    };
+    if (responseFormatJson) {
+      body.generationConfig.responseMimeType = 'application/json';
+    }
+    if (maxTokens) {
+      body.generationConfig.maxOutputTokens = maxTokens;
+    }
+    const response = await fetchWithRetry(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    const data = await response.json();
+    if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+      throw new Error(`Gemini response format error: ${JSON.stringify(data)}`);
+    }
+    return data.candidates[0].content.parts[0].text;
+  } else {
+    throw new Error('No active AI service configured.');
+  }
+}
+
+/**
+ * Generate quiz questions based on lecture note inputs.
+ */
+async function generateQuestions(textInput, numQuestions = 5) {
+  if (isKeyMissing) {
+    console.warn('AI API keys are not configured. Falling back to local AI simulation.');
+    return getSimulatedQuestions(textInput, numQuestions);
+  }
+
+  try {
+    const responseText = await callAI({
+      system: `You are an expert university professor creating a quiz. Analyze the provided study material. Generate exactly ${numQuestions} distinct questions. Return ONLY a valid JSON array matching this typescript interface:
+      interface Question {
+        text: string;
+        type: 'mcq' | 'short' | 'tf';
+        options: string[]; // 4 items if type is mcq, empty array if tf or short
+        correctAnswer: string; // the option text for mcq, "True" or "False" for tf, or short keyword for short
+        explanation: string; // plain-English explanation of why the correctAnswer is correct and what the concept actually is. Limit to 2 sentences.
+        difficulty: number; // integer from 1 (easiest) to 5 (hardest)
+        topic: string; // 1-3 words topic representing the core question theme
+      }
+      Provide no additional introductory text, conversational comments, or explanations outside the JSON array. Output raw JSON code.`,
+      user: `Create a quiz based on this content:\n\n${textInput}`,
+      temperature: 0.2,
+      maxTokens: 4000,
+      responseFormatJson: true
+    });
     
     // Parse the JSON array safely
-    const cleanText = rawText.substring(rawText.indexOf('['), rawText.lastIndexOf(']') + 1);
+    const cleanText = responseText.substring(responseText.indexOf('['), responseText.lastIndexOf(']') + 1);
     return JSON.parse(cleanText);
   } catch (err) {
-    console.error('Claude API call failed, generating simulated fallback questions:', err);
+    console.error('Quiz generation API call failed, generating simulated fallback questions:', err);
     return getSimulatedQuestions(textInput, numQuestions);
   }
 }
@@ -79,31 +124,16 @@ async function explainWrongAnswer(questionText, correctAnswer, studentAnswer) {
   }
 
   try {
-    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        temperature: 0.5,
-        system: `You are an encouraging academic helper. Explain why the user's answer is incorrect and clarify the correct concept. Be brief, clear, and direct. Limit the feedback to exactly 2-3 sentences in friendly plain English.`,
-        messages: [
-          {
-            role: 'user',
-            content: `Question: ${questionText}\nCorrect Answer: ${correctAnswer}\nStudent's Incorrect Answer: ${studentAnswer}`
-          }
-        ]
-      })
+    const responseText = await callAI({
+      system: `You are an encouraging academic helper. Explain why the user's answer is incorrect and clarify the correct concept. Be brief, clear, and direct. Limit the feedback to exactly 2-3 sentences in friendly plain English.`,
+      user: `Question: ${questionText}\nCorrect Answer: ${correctAnswer}\nStudent's Incorrect Answer: ${studentAnswer}`,
+      temperature: 0.5,
+      maxTokens: 300
     });
 
-    const data = await response.json();
-    return data.content[0].text.trim();
+    return responseText.trim();
   } catch (err) {
-    console.error('Failed to get explanation from Claude, returning simulated fallback:', err);
+    console.error('Failed to get explanation from AI, returning simulated fallback:', err);
     return `The correct answer is "${correctAnswer}". Your answer "${studentAnswer}" is incorrect. Re-read the lecture materials regarding this topic.`;
   }
 }
@@ -118,43 +148,30 @@ async function generateStudyPlan(weakestTopics) {
   }
 
   try {
-    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        temperature: 0.3,
-        system: `You are an academic learning advisor. Generate a structured 7-day study plan for a student struggling with these topics: ${topicsStr}. 
-        Return ONLY a valid JSON object matching this typescript interface:
-        interface StudyPlan {
-          days: {
-            day: number; // 1 to 7
-            topic: string; // The specific topic to study this day
-            tasks: string[]; // 2-3 specific learning tasks (e.g. read notes, practice SQL syntax)
-            recommendedQuizTopic: string; // The topic category to take a practice quiz on
-            estimatedMinutes: number; // Estimated study time in minutes
-          }[];
-        }
-        Provide no additional conversational comments, text markdown wrappers, or intro/outro outside the JSON object. Output raw JSON code.`,
-        messages: [
-          { role: 'user', content: `Generate a study plan for: ${topicsStr}` }
-        ]
-      })
+    const responseText = await callAI({
+      system: `You are an academic learning advisor. Generate a structured 7-day study plan for a student struggling with these topics: ${topicsStr}. 
+      Return ONLY a valid JSON object matching this typescript interface:
+      interface StudyPlan {
+        days: {
+          day: number; // 1 to 7
+          topic: string; // The specific topic to study this day
+          tasks: string[]; // 2-3 specific learning tasks (e.g. read notes, practice SQL syntax)
+          recommendedQuizTopic: string; // The topic category to take a practice quiz on
+          estimatedMinutes: number; // Estimated study time in minutes
+        }[];
+      }
+      Provide no additional conversational comments, text markdown wrappers, or intro/outro outside the JSON object. Output raw JSON code.`,
+      user: `Generate a study plan for: ${topicsStr}`,
+      temperature: 0.3,
+      maxTokens: 2000,
+      responseFormatJson: true
     });
-
-    const data = await response.json();
-    const rawText = data.content[0].text;
     
     // Parse the JSON object safely
-    const cleanText = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
+    const cleanText = responseText.substring(responseText.indexOf('{'), responseText.lastIndexOf('}') + 1);
     return JSON.parse(cleanText);
   } catch (err) {
-    console.error('Failed to generate study plan from Claude, returning simulated fallback:', err);
+    console.error('Failed to generate study plan from AI, returning simulated fallback:', err);
     return getSimulatedStudyPlan(weakestTopics);
   }
 }
@@ -168,31 +185,16 @@ async function generateHint(questionText) {
   }
 
   try {
-    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 150,
-        temperature: 0.5,
-        system: `You are a helpful teaching assistant. Provide a single-sentence nudge hint for the given question. Do NOT reveal the correct answer. Point the student in the right direction with a supportive tip.`,
-        messages: [
-          {
-            role: 'user',
-            content: `Provide a hint for this question: "${questionText}"`
-          }
-        ]
-      })
+    const responseText = await callAI({
+      system: `You are a helpful teaching assistant. Provide a single-sentence nudge hint for the given question. Do NOT reveal the correct answer. Point the student in the right direction with a supportive tip.`,
+      user: `Provide a hint for this question: "${questionText}"`,
+      temperature: 0.5,
+      maxTokens: 150
     });
 
-    const data = await response.json();
-    return data.content[0].text.trim();
+    return responseText.trim();
   } catch (err) {
-    console.error('Failed to get hint from Claude, returning simulated fallback:', err);
+    console.error('Failed to get hint from AI, returning simulated fallback:', err);
     return `Review the basic definitions and structures associated with this question.`;
   }
 }
@@ -355,55 +357,40 @@ function getSimulatedStudyPlan(weakestTopics) {
 }
 
 /**
- * Analyze timing and app focus patterns using Claude to check for suspected cheating.
+ * Analyze timing and app focus patterns using AI to check for suspected cheating.
  */
 async function analyzeCheatPattern(timings, answerSequence, appStateChanges) {
   if (isKeyMissing) {
     return {
       cheatingSuspected: false,
-      reason: "Local programmatic checks applied: Claude API key missing."
+      reason: "Local programmatic checks applied: AI API keys missing."
     };
   }
 
   try {
-    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        temperature: 0.2,
-        system: `You are an academic integrity AI auditor. Analyze the quiz submission metrics. Return ONLY a valid JSON object matching this structure:
-        {
-          "cheatingSuspected": boolean,
-          "reason": "Clear explanation of findings and patterns"
-        }
-        Do not include any other text.`,
-        messages: [
-          {
-            role: 'user',
-            content: `Analyze the student's telemetry for this quiz session:
-            Timings per question (seconds): ${JSON.stringify(timings)}
-            Answer sequence (given answers): ${JSON.stringify(answerSequence)}
-            App state changes (number of times student exited/switched app): ${appStateChanges}`
-          }
-        ]
-      })
+    const responseText = await callAI({
+      system: `You are an academic integrity AI auditor. Analyze the quiz submission metrics. Return ONLY a valid JSON object matching this structure:
+      {
+        "cheatingSuspected": boolean,
+        "reason": "Clear explanation of findings and patterns"
+      }
+      Do not include any other text.`,
+      user: `Analyze the student's telemetry for this quiz session:
+      Timings per question (seconds): ${JSON.stringify(timings)}
+      Answer sequence (given answers): ${JSON.stringify(answerSequence)}
+      App state changes (number of times student exited/switched app): ${appStateChanges}`,
+      temperature: 0.2,
+      maxTokens: 300,
+      responseFormatJson: true
     });
 
-    const data = await response.json();
-    const rawText = data.content[0].text.trim();
-    const cleanText = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
+    const cleanText = responseText.substring(responseText.indexOf('{'), responseText.lastIndexOf('}') + 1);
     return JSON.parse(cleanText);
   } catch (err) {
-    console.error('Failed to analyze cheat pattern with Claude, returning fallback:', err);
+    console.error('Failed to analyze cheat pattern with AI, returning fallback:', err);
     return {
       cheatingSuspected: false,
-      reason: "Could not retrieve Claude AI analysis. Network/API issue."
+      reason: "Could not retrieve AI integrity analysis. Network/API issue."
     };
   }
 }
@@ -417,28 +404,16 @@ async function generateStudentReportInsight(reportData) {
   }
 
   try {
-    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        temperature: 0.5,
-        system: `You are an academic learning advisor. Write a 3-sentence personalized insight summary for a student based on their quiz performance metrics. Be encouraging, actionable, and reference their strongest and weakest topics. Do not write introductory words like 'Here is your summary'. Return only the 3 sentences of text.`,
-        messages: [
-          { role: 'user', content: `Student Metrics:\n${JSON.stringify(reportData)}` }
-        ]
-      })
+    const responseText = await callAI({
+      system: `You are an academic learning advisor. Write a 3-sentence personalized insight summary for a student based on their quiz performance metrics. Be encouraging, actionable, and reference their strongest and weakest topics. Do not write introductory words like 'Here is your summary'. Return only the 3 sentences of text.`,
+      user: `Student Metrics:\n${JSON.stringify(reportData)}`,
+      temperature: 0.5,
+      maxTokens: 300
     });
 
-    const data = await response.json();
-    return data.content[0].text.trim();
+    return responseText.trim();
   } catch (err) {
-    console.error('Failed to get student report insight from Claude, returning fallback:', err);
+    console.error('Failed to get student report insight from AI, returning fallback:', err);
     return "You have made consistent progress across your enrolled courses, demonstrating strong performance in core topics. Focus on reinforcing your weaker areas by using the adaptive quiz engine regularly. Keep maintaining your daily study habit to maximize knowledge retention.";
   }
 }
