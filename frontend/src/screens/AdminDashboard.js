@@ -14,9 +14,34 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { VictoryLine, VictoryBar, VictoryChart, VictoryTheme, VictoryAxis, VictoryGroup, VictoryArea } from 'victory-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeInDown, FadeInUp, FadeInLeft, SlideInRight, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { api } from '../services/api';
 import { clearAuth, getRoleFromToken } from '../utils/storage';
 import { useTheme } from '../context/ThemeContext';
+
+const AnimatedIcon = ({ name, isActive, colors }) => {
+  const scale = useSharedValue(isActive ? 1.25 : 1);
+  const opacity = useSharedValue(isActive ? 1 : 0.7);
+
+  React.useEffect(() => {
+    scale.value = withSpring(isActive ? 1.25 : 1, { damping: 10, stiffness: 150 });
+    opacity.value = withSpring(isActive ? 1 : 0.7, { damping: 12, stiffness: 100 });
+  }, [isActive]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+      opacity: opacity.value,
+    };
+  });
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Ionicons name={name} size={18} color={isActive ? colors.primary : colors.textMuted} />
+    </Animated.View>
+  );
+};
 
 export default function AdminDashboard({ navigation }) {
   const { colors, theme, toggleTheme } = useTheme();
@@ -288,55 +313,107 @@ export default function AdminDashboard({ navigation }) {
   // Render Helpers
   const renderSidebar = () => {
     const tabs = [
-      { id: 'overview', icon: '📊', label: 'Overview' },
-      { id: 'flags', icon: '🚨', label: 'Flags' },
-      { id: 'quizzes', icon: '📝', label: 'Quizzes' },
-      { id: 'users', icon: '👥', label: 'Users' },
-      { id: 'courses', icon: '🎓', label: 'Courses' },
-      { id: 'ai', icon: '✨', label: 'AI' }
+      { id: 'overview', icon: 'grid-outline', label: 'Overview' },
+      { id: 'flags', icon: 'alert-circle-outline', label: 'Flags', count: unreviewedCount },
+      { id: 'quizzes', icon: 'newspaper-outline', label: 'Quizzes' },
+      { id: 'users', icon: 'people-outline', label: 'Users' },
+      { id: 'courses', icon: 'school-outline', label: 'Courses' },
+      { id: 'ai', icon: 'sparkles-outline', label: 'AI Settings' }
     ];
 
     return (
-      <View style={[styles.sidebar, { backgroundColor: colors.card, borderRightColor: colors.border }]}>
-        <View style={styles.sidebarAvatar}>
-          <Text style={styles.sidebarAvatarText}>AD</Text>
+      <Animated.View 
+        entering={FadeInLeft.duration(350)} 
+        style={[styles.sidebar, { backgroundColor: colors.card, borderRightColor: colors.border }]}
+      >
+        <View style={styles.sidebarHeader}>
+          <View style={styles.sidebarAvatar}>
+            <Text style={styles.sidebarAvatarText}>AD</Text>
+          </View>
+          {isLargeScreen && <Text style={styles.sidebarHeaderTitle}>Admin Console</Text>}
         </View>
+        
         <View style={styles.sidebarNav}>
-          {tabs.map((tab) => (
-            <TouchableOpacity 
-              key={tab.id}
-              style={[styles.sidebarBtn, activeTab === tab.id && { backgroundColor: colors.background }]}
-              onPress={() => {
-                setLoading(true);
-                setActiveTab(tab.id);
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Text style={styles.sidebarIcon}>{tab.icon}</Text>
-                  {isLargeScreen && <Text style={[styles.sidebarLabel, { color: activeTab === tab.id ? colors.text : colors.textMuted }]}>{tab.label}</Text>}
-                </View>
-                {tab.id === 'flags' && unreviewedCount > 0 && (
-                  <View style={styles.unreviewedBadgePill}>
-                    <Text style={styles.unreviewedBadgeText}>{unreviewedCount}</Text>
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <TouchableOpacity 
+                key={tab.id}
+                style={[styles.sidebarBtn, isActive && styles.sidebarBtnActive]}
+                onPress={() => {
+                  setLoading(true);
+                  setActiveTab(tab.id);
+                }}
+              >
+                <View style={styles.sidebarBtnContent}>
+                  <View style={styles.sidebarBtnLeft}>
+                    <AnimatedIcon 
+                      name={tab.icon} 
+                      isActive={isActive} 
+                      colors={colors} 
+                    />
+                    {isLargeScreen && (
+                      <Text style={[styles.sidebarLabel, isActive && styles.sidebarLabelActive]}>
+                        {tab.label}
+                      </Text>
+                    )}
                   </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+                  {tab.count > 0 && (
+                    <View style={styles.unreviewedBadgePill}>
+                      <Text style={styles.unreviewedBadgeText}>{tab.count}</Text>
+                    </View>
+                  )}
+                </View>
+                {isActive && <View style={[styles.sidebarActiveIndicator, { backgroundColor: colors.primary }]} />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <TouchableOpacity 
-          style={[styles.sidebarBtn, activeTab === 'settings' && { backgroundColor: colors.background }]}
+          style={[styles.sidebarBtn, activeTab === 'settings' && styles.sidebarBtnActive, { marginBottom: 12 }]}
           onPress={() => {
             setLoading(true);
             setActiveTab('settings');
           }}
         >
-          <Text style={styles.sidebarIcon}>⚙️</Text>
-          {isLargeScreen && <Text style={[styles.sidebarLabel, { color: activeTab === 'settings' ? colors.text : colors.textMuted }]}>Settings</Text>}
+          <View style={styles.sidebarBtnContent}>
+            <View style={styles.sidebarBtnLeft}>
+              <AnimatedIcon 
+                name="settings-outline" 
+                isActive={activeTab === 'settings'} 
+                colors={colors} 
+              />
+              {isLargeScreen && (
+                <Text style={[styles.sidebarLabel, activeTab === 'settings' && styles.sidebarLabelActive]}>
+                  Settings
+                </Text>
+              )}
+            </View>
+          </View>
+          {activeTab === 'settings' && <View style={[styles.sidebarActiveIndicator, { backgroundColor: colors.primary }]} />}
         </TouchableOpacity>
-      </View>
+
+        <TouchableOpacity 
+          style={[styles.sidebarBtn, { marginBottom: 12 }]}
+          onPress={toggleTheme}
+        >
+          <View style={styles.sidebarBtnContent}>
+            <View style={styles.sidebarBtnLeft}>
+              <AnimatedIcon 
+                name={theme === 'dark' ? 'sunny-outline' : 'moon-outline'} 
+                isActive={false} 
+                colors={colors} 
+              />
+              {isLargeScreen && (
+                <Text style={styles.sidebarLabel}>
+                  {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </Text>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
     );
   };
 
@@ -371,18 +448,44 @@ export default function AdminDashboard({ navigation }) {
 
           {/* Stats Summary cards */}
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>Active Students</Text>
+            <Animated.View 
+              entering={FadeInDown.delay(100).duration(450)} 
+              style={[styles.statCard, styles.statCardBlue, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={styles.statCardHeader}>
+                <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>Active Students</Text>
+                <View style={[styles.statIconContainer, { backgroundColor: '#C084FC20' }]}>
+                  <Ionicons name="people-outline" size={16} color="#C084FC" />
+                </View>
+              </View>
               <Text style={[styles.statCardVal, { color: '#C084FC' }]}>{overviewData.totalActiveStudents}</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>Quizzes (This Week)</Text>
+            </Animated.View>
+
+            <Animated.View 
+              entering={FadeInDown.delay(200).duration(450)} 
+              style={[styles.statCard, styles.statCardPurple, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={styles.statCardHeader}>
+                <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>Quizzes (This Week)</Text>
+                <View style={[styles.statIconContainer, { backgroundColor: '#60A5FA20' }]}>
+                  <Ionicons name="newspaper-outline" size={16} color="#60A5FA" />
+                </View>
+              </View>
               <Text style={[styles.statCardVal, { color: '#60A5FA' }]}>{overviewData.totalQuizzesTakenThisWeek}</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>University Avg Score</Text>
+            </Animated.View>
+
+            <Animated.View 
+              entering={FadeInDown.delay(300).duration(450)} 
+              style={[styles.statCard, styles.statCardGreen, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={styles.statCardHeader}>
+                <Text style={[styles.statCardLabel, { color: colors.textMuted }]}>University Avg Score</Text>
+                <View style={[styles.statIconContainer, { backgroundColor: '#34D39920' }]}>
+                  <Ionicons name="trending-up-outline" size={16} color="#34D399" />
+                </View>
+              </View>
               <Text style={[styles.statCardVal, { color: '#34D399' }]}>{overviewData.averageScoreAllCourses}%</Text>
-            </View>
+            </Animated.View>
           </View>
 
           {/* Line Chart of Daily quiz activity */}
@@ -597,7 +700,7 @@ export default function AdminDashboard({ navigation }) {
         
         {/* AI Generator Panel */}
         <View style={styles.subCard}>
-          <Text style={styles.subCardTitle}>⚡ Claude AI Exam Generator</Text>
+          <Text style={styles.subCardTitle}>⚡ AI Exam Generator</Text>
           <Text style={styles.subCardSub}>Auto-compose deep adaptive question banks based on syllabus text inputs.</Text>
           
           <View style={[styles.formRow, { flexDirection: isLargeScreen ? 'row' : 'column', marginBottom: isLargeScreen ? 12 : 0 }]}>
@@ -650,7 +753,7 @@ export default function AdminDashboard({ navigation }) {
               {actionLoading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.generateBtnText}>Generate with Claude</Text>
+                <Text style={styles.generateBtnText}>Generate with AI</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1183,13 +1286,13 @@ export default function AdminDashboard({ navigation }) {
 
   const renderMobileTabBar = () => {
     const tabs = [
-      { id: 'overview', icon: '📊', label: 'Overview' },
-      { id: 'flags', icon: '🚨', label: 'Flags' },
-      { id: 'quizzes', icon: '📝', label: 'Quizzes' },
-      { id: 'users', icon: '👥', label: 'Users' },
-      { id: 'courses', icon: '🎓', label: 'Courses' },
-      { id: 'ai', icon: '✨', label: 'AI' },
-      { id: 'settings', icon: '⚙️', label: 'Settings' }
+      { id: 'overview', icon: 'grid-outline', label: 'Overview' },
+      { id: 'flags', icon: 'alert-circle-outline', label: 'Flags', count: unreviewedCount },
+      { id: 'quizzes', icon: 'newspaper-outline', label: 'Quizzes' },
+      { id: 'users', icon: 'people-outline', label: 'Users' },
+      { id: 'courses', icon: 'school-outline', label: 'Courses' },
+      { id: 'ai', icon: 'sparkles-outline', label: 'AI Settings' },
+      { id: 'settings', icon: 'settings-outline', label: 'Settings' }
     ];
 
     return (
@@ -1199,21 +1302,33 @@ export default function AdminDashboard({ navigation }) {
           showsHorizontalScrollIndicator={false} 
           contentContainerStyle={styles.mobileTabBarScrollContainer}
         >
-          {tabs.map((tab) => (
-            <TouchableOpacity 
-              key={tab.id}
-              style={[styles.mobileTabBtn, activeTab === tab.id && styles.mobileTabBtnActive]}
-              onPress={() => {
-                setLoading(true);
-                setActiveTab(tab.id);
-              }}
-            >
-              <Text style={styles.mobileTabIcon}>{tab.icon}</Text>
-              <Text style={[styles.mobileTabLabel, activeTab === tab.id && styles.mobileTabLabelActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <TouchableOpacity 
+                key={tab.id}
+                style={[styles.mobileTabBtn, isActive && styles.mobileTabBtnActive]}
+                onPress={() => {
+                  setLoading(true);
+                  setActiveTab(tab.id);
+                }}
+              >
+                <View style={{ position: 'relative', alignItems: 'center' }}>
+                  <AnimatedIcon 
+                    name={tab.icon} 
+                    isActive={isActive} 
+                    colors={colors} 
+                  />
+                  {tab.count > 0 && (
+                    <View style={styles.mobileBadgeDot} />
+                  )}
+                </View>
+                <Text style={[styles.mobileTabLabel, isActive && styles.mobileTabLabelActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
     );
@@ -1231,17 +1346,34 @@ export default function AdminDashboard({ navigation }) {
     <View style={[styles.container, { flexDirection: isLargeScreen ? 'row' : 'column', backgroundColor: colors.background }]}>
       {/* Mobile Top Header */}
       {!isLargeScreen && (
-        <View style={[styles.mobileHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <Animated.View 
+          entering={FadeInDown.duration(400)} 
+          style={[styles.mobileHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
+        >
           <View style={styles.mobileHeaderLeft}>
-            <View style={[styles.sidebarAvatar, { marginBottom: 0 }]}>
-              <Text style={styles.sidebarAvatarText}>AD</Text>
+            <View style={styles.mobileHeaderAvatar}>
+              <Text style={styles.mobileHeaderAvatarText}>AD</Text>
             </View>
-            <Text style={[styles.mobileHeaderTitle, { color: colors.text }]}>Admin Console</Text>
+            <Text style={[styles.mobileHeaderTitle, { color: colors.text }]} numberOfLines={1}>
+              Admin Console
+            </Text>
           </View>
-          <TouchableOpacity style={[styles.mobileLogoutBtn, { backgroundColor: colors.background, borderColor: colors.border }]} onPress={handleLogout}>
-            <Text style={[styles.mobileLogoutText, { color: colors.text }]}>Logout</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.mobileHeaderRight}>
+            <TouchableOpacity 
+              style={[styles.mobileThemeBtn, { backgroundColor: colors.border }]} 
+              onPress={toggleTheme}
+            >
+              <Ionicons name={theme === 'dark' ? 'sunny-outline' : 'moon-outline'} size={16} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.mobileLogoutBtn, { backgroundColor: colors.red + '10', borderColor: colors.red + '30' }]} 
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={15} color={colors.red} />
+              <Text style={[styles.mobileLogoutText, { color: colors.red, fontWeight: '700' }]}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       )}
 
       {isLargeScreen && renderSidebar()}
@@ -1262,13 +1394,41 @@ export default function AdminDashboard({ navigation }) {
           </View>
         ) : (
           <>
-            {activeTab === 'overview' && renderOverview()}
-            {activeTab === 'flags' && renderFlags()}
-            {activeTab === 'quizzes' && renderQuizzes()}
-            {activeTab === 'users' && renderUsers()}
-            {activeTab === 'courses' && renderCourses()}
-            {activeTab === 'ai' && renderAiSettings()}
-            {activeTab === 'settings' && renderSettings()}
+            {activeTab === 'overview' && (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.panel}>
+                {renderOverview()}
+              </Animated.View>
+            )}
+            {activeTab === 'flags' && (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.panel}>
+                {renderFlags()}
+              </Animated.View>
+            )}
+            {activeTab === 'quizzes' && (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.panel}>
+                {renderQuizzes()}
+              </Animated.View>
+            )}
+            {activeTab === 'users' && (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.panel}>
+                {renderUsers()}
+              </Animated.View>
+            )}
+            {activeTab === 'courses' && (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.panel}>
+                {renderCourses()}
+              </Animated.View>
+            )}
+            {activeTab === 'ai' && (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.panel}>
+                {renderAiSettings()}
+              </Animated.View>
+            )}
+            {activeTab === 'settings' && (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.panel}>
+                {renderSettings()}
+              </Animated.View>
+            )}
           </>
         )}
       </ScrollView>
@@ -1465,7 +1625,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     overflow: 'hidden',
   },
   sidebar: {
-    width: 180,
+    width: 200,
     backgroundColor: colors.card,
     borderRightWidth: 1,
     borderRightColor: colors.border,
@@ -1473,41 +1633,78 @@ const getStyles = (colors, theme) => StyleSheet.create({
     paddingVertical: 24,
     justifyContent: 'space-between',
   },
+  sidebarHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+    width: '100%',
+  },
+  sidebarHeaderTitle: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 8,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   sidebarAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   sidebarAvatarText: {
     color: colors.white,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
   sidebarNav: {
     flex: 1,
     width: '100%',
-    paddingHorizontal: 8,
-    gap: 8,
-    marginTop: 20,
+    paddingHorizontal: 12,
+    gap: 6,
+    marginTop: 24,
   },
   sidebarBtn: {
     width: '100%',
-    paddingVertical: 12,
+    paddingVertical: 11,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 14,
+    position: 'relative',
+    overflow: 'hidden',
   },
   sidebarBtnActive: {
     backgroundColor: colors.border,
+  },
+  sidebarBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  sidebarBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sidebarActiveIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 10,
+    bottom: 10,
+    width: 3,
+    borderRadius: 1.5,
   },
   sidebarIcon: {
     fontSize: 18,
@@ -1519,6 +1716,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
   },
   sidebarLabelActive: {
     color: colors.white,
+    fontWeight: '700',
   },
   mainPanel: {
     flex: 1,
@@ -1553,13 +1751,15 @@ const getStyles = (colors, theme) => StyleSheet.create({
     fontWeight: '800',
   },
   healthBadge: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#ECFDF515',
     borderRadius: 14,
     paddingVertical: 4,
     paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    borderWidth: 1,
+    borderColor: '#10B98130',
   },
   healthDot: {
     color: colors.teal,
@@ -1573,7 +1773,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    gap: 8,
+    gap: 12,
     marginBottom: 24,
   },
   statCard: {
@@ -1582,13 +1782,42 @@ const getStyles = (colors, theme) => StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 16,
+    borderLeftWidth: 4,
+    elevation: 4,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  statCardBlue: {
+    borderLeftColor: '#C084FC',
+  },
+  statCardPurple: {
+    borderLeftColor: '#60A5FA',
+  },
+  statCardGreen: {
+    borderLeftColor: '#34D399',
+  },
+  statCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  statIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statCardLabel: {
     color: colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
+    textTransform: 'uppercase',
     flexShrink: 1,
   },
   statCardIcon: {
@@ -1596,12 +1825,12 @@ const getStyles = (colors, theme) => StyleSheet.create({
     marginTop: 4,
   },
   statCardVal: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
     marginTop: 4,
   },
   sectionTitleText: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 12,
@@ -1633,7 +1862,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     flex: 1,
   },
   activityTitle: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
@@ -1660,7 +1889,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     marginTop: 2,
   },
   reviewBtnText: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -1675,7 +1904,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     marginBottom: 20,
   },
   subCardTitle: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 14.5,
     fontWeight: '700',
     marginBottom: 4,
@@ -1804,8 +2033,8 @@ const getStyles = (colors, theme) => StyleSheet.create({
     fontWeight: '700',
   },
   actionBtnEdit: {
-    backgroundColor: colors.border,
-    borderColor: colors.border,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
     borderWidth: 1,
     borderRadius: 6,
     paddingVertical: 4,
@@ -1850,7 +2079,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     borderRadius: 6,
   },
   filterBtnActive: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.primary,
   },
   filterBtnText: {
     color: colors.textMuted,
@@ -1915,7 +2144,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     marginBottom: 16,
   },
   settingGroupTitle: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 4,
@@ -2021,7 +2250,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     paddingVertical: 12,
   },
   toggleTitle: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
@@ -2078,7 +2307,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     marginBottom: 8,
   },
   modalTitle: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 16,
@@ -2101,7 +2330,7 @@ const getStyles = (colors, theme) => StyleSheet.create({
     marginBottom: 2,
   },
   modalFieldValue: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 13,
     marginBottom: 10,
   },
@@ -2138,20 +2367,26 @@ const getStyles = (colors, theme) => StyleSheet.create({
   mobileHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flexShrink: 1,
   },
   mobileHeaderTitle: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '800',
+    flexShrink: 1,
   },
   mobileLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderColor: colors.border,
     borderWidth: 1,
     backgroundColor: colors.card,
     borderRadius: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     paddingHorizontal: 10,
+    flexShrink: 0,
   },
   mobileLogoutText: {
     color: colors.text,
@@ -2198,5 +2433,43 @@ const getStyles = (colors, theme) => StyleSheet.create({
   },
   mobileTabLabelActive: {
     color: colors.white,
+  },
+  mobileBadgeDot: {
+    position: 'absolute',
+    right: -6,
+    top: -2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.coral,
+  },
+  mobileHeaderAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mobileHeaderAvatarText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  mobileHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mobileThemeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });
