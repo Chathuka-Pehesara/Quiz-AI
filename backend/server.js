@@ -31,6 +31,9 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Simple Health Check
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', time: new Date() });

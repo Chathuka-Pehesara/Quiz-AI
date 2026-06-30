@@ -12,7 +12,8 @@ import {
   RefreshControl,
   Platform,
   Pressable,
-  Dimensions
+  Dimensions,
+  Image
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import Animated, {
@@ -28,7 +29,7 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../services/api';
+import { api, getMediaUrl } from '../services/api';
 import { clearAuth, getRoleFromToken } from '../utils/storage';
 import { scheduleSmartReminders } from '../utils/notifications';
 import { getSocket, connectSocket } from '../services/socket';
@@ -826,11 +827,19 @@ export default function StudentDashboard({ navigation }) {
         {/* Profile Header Row */}
         <View style={styles.header}>
           <View style={styles.profileInfo}>
-            <View style={styles.avatarBorder}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
-              </View>
-            </View>
+            <TouchableOpacity
+              style={styles.avatarBorder}
+              onPress={() => navigation.navigate('Profile')}
+              activeOpacity={0.8}
+            >
+              {user?.profileImage ? (
+                <Image source={{ uri: getMediaUrl(user.profileImage) }} style={styles.avatarImg} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <View style={styles.profileTextContainer}>
               <Text style={styles.welcomeText}>Welcome back,</Text>
               <Text style={styles.userName} numberOfLines={1}>{user?.name || 'Student'}</Text>
@@ -1628,6 +1637,11 @@ const getStyles = (colors, theme) => {
       backgroundColor: isDark ? '#1E293B' : '#E2E8F0',
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    avatarImg: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
     },
     avatarText: {
       color: colors.text,

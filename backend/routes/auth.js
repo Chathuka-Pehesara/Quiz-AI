@@ -65,4 +65,88 @@ router.get('/me', auth(), async (req, res) => {
   }
 });
 
+// Multer Storage Configuration for Profile Pictures
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|webp/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error('Only image files (jpeg, jpg, png, webp) are allowed'));
+  }
+});
+
+// Upload profile image
+router.post('/upload', auth(), upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const relativePath = `/uploads/${req.file.filename}`;
+    res.json({ url: relativePath });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Upload error' });
+  }
+}, (error, req, res, next) => {
+  res.status(400).json({ message: error.message });
+});
+
+// Update profile details
+router.put('/profile', auth(), async (req, res) => {
+  const { name, email, password, profileImage } = req.body;
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (email && email.toLowerCase() !== user.email.toLowerCase()) {
+      const emailExists = await User.findOne({ email: email.toLowerCase() });
+      if (emailExists) {
+        return res.status(400).json({ message: 'Email is already in use' });
+      }
+      user.email = email.toLowerCase();
+    }
+
+    if (name) user.name = name.trim();
+    if (profileImage !== undefined) user.profileImage = profileImage;
+    
+    if (password) {
+      user.password = password;
+    }
+
+    await user.save();
+    
+    const updatedUser = await User.findById(user._id).select('-password');
+    res.json(updatedUser);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

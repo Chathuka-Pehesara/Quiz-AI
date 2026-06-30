@@ -1,8 +1,8 @@
 import { useTheme } from '../context/ThemeContext';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList, Image } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { api } from '../services/api';
+import { api, getMediaUrl } from '../services/api';
 import { clearAuth, getUser, getRoleFromToken } from '../utils/storage';
 
 export default function ProfessorDashboard({ navigation }) {
@@ -10,6 +10,16 @@ export default function ProfessorDashboard({ navigation }) {
   const styles = getStyles(colors, theme);
   const isFocused = useIsFocused();
   const [user, setUser] = useState(null);
+
+  const getInitials = (name) => {
+    if (!name) return 'PR';
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+  };
   
   useEffect(() => {
     const checkRole = async () => {
@@ -56,7 +66,7 @@ export default function ProfessorDashboard({ navigation }) {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const profile = await getUser();
+      const profile = await api.getProfile();
       setUser(profile);
 
       const profCourses = await api.getMyCourses();
@@ -212,9 +222,24 @@ export default function ProfessorDashboard({ navigation }) {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.welcome}>Professor Console,</Text>
-          <Text style={styles.userName}>{user?.name || 'Professor'}</Text>
+        <View style={styles.profileRow}>
+          <TouchableOpacity
+            style={styles.avatarBorder}
+            onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.8}
+          >
+            {user?.profileImage ? (
+              <Image source={{ uri: getMediaUrl(user.profileImage) }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.welcome}>Professor Console,</Text>
+            <Text style={styles.userName}>{user?.name || 'Professor'}</Text>
+          </View>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
@@ -522,6 +547,38 @@ const getStyles = (colors, theme) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarBorder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: theme === 'dark' ? '#1E293B' : '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  avatarText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
   },
   welcome: {
     color: colors.textMuted,

@@ -12,6 +12,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('student'); // 'student' | 'professor'
 
   const [biometricsSupported, setBiometricsSupported] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
@@ -45,7 +46,7 @@ export default function LoginScreen({ navigation }) {
       }
     };
     checkBiometrics();
-  }, []);
+  }, [selectedRole]);
 
   const handleBiometricLogin = async () => {
     try {
@@ -60,15 +61,18 @@ export default function LoginScreen({ navigation }) {
         
         if (storedToken && storedUserJson) {
           const user = JSON.parse(storedUserJson);
-          Alert.alert('Success', `Welcome back, ${user.name}! (Biometric authenticated)`);
           
-          if (user.role === 'admin') {
-            navigation.replace('AdminDashboard');
-          } else if (user.role === 'professor') {
-            navigation.replace('ProfessorDashboard');
-          } else {
-            navigation.replace('StudentDashboard');
+          // Role Validation (Admins are bypassed)
+          if (user.role !== 'admin' && user.role !== selectedRole) {
+            Alert.alert(
+              'Access Denied',
+              `This account is registered as a ${user.role}. Please select the correct login role.`
+            );
+            return;
           }
+
+          Alert.alert('Success', `Welcome back, ${user.name}! (Biometric authenticated)`);
+          navigateAfterLogin(user);
         } else {
           Alert.alert('Login Required', 'Please sign in with password first to register biometric login.');
         }
@@ -88,6 +92,17 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const data = await api.login(email.trim(), password);
+
+      // Role Validation (Admins are bypassed)
+      if (data.user.role !== 'admin' && data.user.role !== selectedRole) {
+        Alert.alert(
+          'Access Denied',
+          `This account is registered as a ${data.user.role}. Please select the correct login role.`
+        );
+        setLoading(false);
+        return;
+      }
+
       await storeToken(data.token);
       await storeUser(data.user);
       
@@ -166,6 +181,23 @@ export default function LoginScreen({ navigation }) {
           value={password}
           onChangeText={setPassword}
         />
+
+        {/* Role Selector Toggle */}
+        <Text style={styles.label}>Login As</Text>
+        <View style={styles.roleContainer}>
+          <TouchableOpacity 
+            style={[styles.roleButton, selectedRole === 'student' && styles.roleActive]}
+            onPress={() => setSelectedRole('student')}
+          >
+            <Text style={[styles.roleText, selectedRole === 'student' && styles.roleTextActive]}>Student</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.roleButton, selectedRole === 'professor' && styles.roleActive]}
+            onPress={() => setSelectedRole('professor')}
+          >
+            <Text style={[styles.roleText, selectedRole === 'professor' && styles.roleTextActive]}>Professor</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
           <TouchableOpacity 
@@ -253,6 +285,33 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 15,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  roleContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  roleButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  roleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  roleText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  roleTextActive: {
+    color: '#FFF',
   },
   button: {
     backgroundColor: colors.primary,

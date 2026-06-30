@@ -25,6 +25,7 @@ import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import DiscussionScreen from './src/screens/DiscussionScreen';
 import StudentReportScreen from './src/screens/StudentReportScreen';
 import QuizAnalyticsScreen from './src/screens/QuizAnalyticsScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -114,6 +115,9 @@ function AppNavigation() {
           {/* Analytics & Reports */}
           <Stack.Screen name="StudentReport" component={StudentReportScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
           <Stack.Screen name="QuizAnalytics" component={QuizAnalyticsScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
+          
+          {/* User Profile */}
+          <Stack.Screen name="Profile" component={ProfileScreen} options={{ cardStyleInterpolator: slideForwardInterpolator }} />
         </Stack.Navigator>
       </NavigationContainer>
     </View>

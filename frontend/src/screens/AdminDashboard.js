@@ -10,13 +10,14 @@ import {
   ActivityIndicator, 
   Modal, 
   Platform,
-  Dimensions
+  Dimensions,
+  Image
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { VictoryLine, VictoryBar, VictoryChart, VictoryTheme, VictoryAxis, VictoryGroup, VictoryArea } from 'victory-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown, FadeInUp, FadeInLeft, SlideInRight, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { api } from '../services/api';
+import { api, getMediaUrl } from '../services/api';
 import { clearAuth, getRoleFromToken } from '../utils/storage';
 import { useTheme } from '../context/ThemeContext';
 
@@ -47,6 +48,7 @@ export default function AdminDashboard({ navigation }) {
   const { colors, theme, toggleTheme } = useTheme();
   const styles = getStyles(colors, theme);
   const isFocused = useIsFocused();
+  const [user, setUser] = useState(null);
   const [isLargeScreen, setIsLargeScreen] = useState(Dimensions.get('window').width > 768);
   const [activeTab, setActiveTab] = useState('overview'); // overview, flags, quizzes, users, courses, ai, settings
   const [unreviewedCount, setUnreviewedCount] = useState(0);
@@ -110,6 +112,13 @@ export default function AdminDashboard({ navigation }) {
 
   const loadData = async () => {
     try {
+      try {
+        const profile = await api.getProfile();
+        setUser(profile);
+      } catch (profileErr) {
+        console.warn('Failed to load profile in AdminDashboard:', profileErr);
+      }
+
       // Fetch unreviewed flags count for the sidebar badge
       try {
         const countRes = await api.getAdminCheatFlagsUnreadCount();
@@ -149,6 +158,16 @@ export default function AdminDashboard({ navigation }) {
   const handleLogout = async () => {
     await clearAuth();
     navigation.replace('Login');
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'AD';
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
   };
 
   // 1. Quiz Management Actions
@@ -326,12 +345,22 @@ export default function AdminDashboard({ navigation }) {
         entering={FadeInLeft.duration(350)} 
         style={[styles.sidebar, { backgroundColor: colors.card, borderRightColor: colors.border }]}
       >
-        <View style={styles.sidebarHeader}>
-          <View style={styles.sidebarAvatar}>
-            <Text style={styles.sidebarAvatarText}>AD</Text>
-          </View>
+        <TouchableOpacity
+          style={styles.sidebarHeader}
+          onPress={() => navigation.navigate('Profile')}
+          activeOpacity={0.8}
+        >
+          {user?.profileImage ? (
+            <View style={styles.sidebarAvatarBorder}>
+              <Image source={{ uri: getMediaUrl(user.profileImage) }} style={styles.sidebarAvatarImg} />
+            </View>
+          ) : (
+            <View style={styles.sidebarAvatar}>
+              <Text style={styles.sidebarAvatarText}>{getInitials(user?.name)}</Text>
+            </View>
+          )}
           {isLargeScreen && <Text style={styles.sidebarHeaderTitle}>Admin Console</Text>}
-        </View>
+        </TouchableOpacity>
         
         <View style={styles.sidebarNav}>
           {tabs.map((tab) => {
@@ -1660,6 +1689,18 @@ const getStyles = (colors, theme) => StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
+  },
+  sidebarAvatarBorder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  sidebarAvatarImg: {
+    width: '100%',
+    height: '100%',
   },
   sidebarAvatarText: {
     color: colors.white,

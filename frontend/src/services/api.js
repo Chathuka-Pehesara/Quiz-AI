@@ -9,8 +9,7 @@ const getMetroHost = () => {
     if (scriptURL) {
       // e.g. "http://10.188.179.4:8081/index.bundle?platform=android..."
       const host = scriptURL.split('://')[1]?.split('/')[0]?.split(':')[0];
-      // Check if it looks like a local network IP address, and ignore stale IP
-      if (host && host !== '10.188.179.4' && (host.startsWith('192.') || host.startsWith('10.') || host.startsWith('172.'))) {
+      if (host && host !== 'localhost' && host !== '127.0.0.1') {
         return host;
       }
     }
@@ -20,17 +19,33 @@ const getMetroHost = () => {
   return null;
 };
 
-const hostIP = getMetroHost() || '10.158.244.4'; // Fallback to your host's local Wi-Fi IP address
+export const getBaseUrl = () => {
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5000/api';
+  }
+  const host = getMetroHost();
+  if (host) {
+    return `http://${host}:5000/api`;
+  }
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:5000/api'; // Android Emulator fallback
+  }
+  return 'http://localhost:5000/api'; // iOS Simulator fallback
+};
 
-const BASE_URL = Platform.OS === 'web'
-  ? 'http://localhost:5000/api'
-  : `http://${hostIP}:5000/api`;
+export const getMediaUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
+  return `${getBaseUrl().replace('/api', '')}${path}`;
+};
 
 async function request(endpoint, options = {}) {
   const token = await getToken();
   
+  const isFormData = options.body instanceof FormData;
+  
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers
   };
@@ -40,12 +55,13 @@ async function request(endpoint, options = {}) {
     headers
   };
 
-  if (config.body && typeof config.body !== 'string') {
+  if (config.body && typeof config.body !== 'string' && !isFormData) {
     config.body = JSON.stringify(config.body);
   }
 
-  // Allow connecting to localhost in non-emulator, or fallback
-  let url = `${BASE_URL}${endpoint}`;
+  // Dynamically resolve base URL on each request
+  const baseUrl = getBaseUrl();
+  let url = `${baseUrl}${endpoint}`;
   
   try {
     const response = await fetch(url, config);
@@ -63,8 +79,9 @@ async function request(endpoint, options = {}) {
   } catch (error) {
     console.error(`API Request failed for ${endpoint}:`, error.message);
     // Try to fallback to localhost if the resolved host IP fails (e.g. running on web or iOS or custom proxy)
-    if (url.includes(hostIP)) {
-      const fallbackUrl = url.replace(hostIP, 'localhost');
+    const host = getMetroHost();
+    if (host && url.includes(host)) {
+      const fallbackUrl = url.replace(host, 'localhost');
       try {
         const response = await fetch(fallbackUrl, config);
         const data = await response.json();
@@ -88,6 +105,12 @@ export const api = {
   
   getProfile: () => 
     request('/auth/me', { method: 'GET' }),
+
+  updateProfile: (data) =>
+    request('/auth/profile', { method: 'PUT', body: data }),
+
+  uploadProfileImage: (formData) =>
+    request('/auth/upload', { method: 'POST', body: formData }),
 
   // Courses
   createCourse: (name, code) => 
