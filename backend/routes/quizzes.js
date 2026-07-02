@@ -33,7 +33,7 @@ async function getOrCreateUserQuizMapping(studentId, quiz) {
     // Shuffle options for MCQ questions
     const shuffledQuestions = [];
     quiz.questions.forEach(q => {
-      if (q.type === 'mcq' && q.options && q.options.length > 0) {
+      if ((q.type === 'mcq' || q.type === 'multi_select') && q.options && q.options.length > 0) {
         const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
         shuffledQuestions.push({
           questionId: q._id.toString(),

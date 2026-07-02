@@ -100,7 +100,14 @@ const upload = multer({
 });
 
 // Upload profile image
-router.post('/upload', auth(), upload.single('image'), (req, res) => {
+router.post('/upload', auth(), (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ message: err.message });
+    }
+    next();
+  });
+}, (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -111,8 +118,6 @@ router.post('/upload', auth(), upload.single('image'), (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'Upload error' });
   }
-}, (error, req, res, next) => {
-  res.status(400).json({ message: error.message });
 });
 
 // Update profile details
