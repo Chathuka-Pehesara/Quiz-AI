@@ -20,6 +20,13 @@ export default function QuizScreen({ route, navigation }) {
   const [responses, setResponses] = useState([]); // Array of { questionId, topic, difficulty, answerGiven, isCorrect }
   const [selectedOption, setSelectedOption] = useState('');
   const [shortAnswer, setShortAnswer] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState([]);
+  const [orderedItems, setOrderedItems] = useState([]);
+  const [matchingKeys, setMatchingKeys] = useState([]);
+  const [matchingValues, setMatchingValues] = useState([]);
+  const [matchingSelections, setMatchingSelections] = useState({});
+  const [activeKey, setActiveKey] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   
   // Anti-cheat Telemetry States
   const [questionTimings, setQuestionTimings] = useState([]); // seconds spent per question
@@ -56,12 +63,51 @@ export default function QuizScreen({ route, navigation }) {
         appChanges += 1;
         setAppStateChanges(appChanges);
         console.log(`[ANTI-CHEAT] App state changed. Count: ${appChanges}`);
+      } else if (nextState === 'active') {
+        if (appChanges > 0) {
+          Alert.alert(
+            '⚠️ Academic Integrity Warning',
+            `You have navigated away from the quiz screen ${appChanges} time(s). Exiting this app is monitored. Exceeding 3 exits will result in your score being flagged for review. Please remain on this screen.`,
+            [{ text: 'I understand' }]
+          );
+        }
       }
     });
     return () => {
       subscription.remove();
     };
   }, []);
+
+  // Initialize interactive question states when currentQuestion changes
+  useEffect(() => {
+    if (currentQuestion) {
+      if (currentQuestion.type === 'ordering') {
+        setOrderedItems(currentQuestion.options || []);
+      } else if (currentQuestion.type === 'matching') {
+        const pairs = (currentQuestion.options || []).map(opt => {
+          const parts = opt.split('|');
+          return { key: parts[0] || '', value: parts[1] || '' };
+        });
+        
+        const keys = pairs.map(p => p.key);
+        const values = pairs.map(p => p.value);
+        
+        // Shuffle matching values column
+        const shuffledValues = [...values].sort(() => Math.random() - 0.5);
+        
+        setMatchingKeys(keys);
+        setMatchingValues(shuffledValues);
+        
+        const initialSelections = {};
+        keys.forEach(k => {
+          initialSelections[k] = '';
+        });
+        setMatchingSelections(initialSelections);
+      } else {
+        setSelectedOptions([]);
+      }
+    }
+  }, [currentQuestion]);
 
   // 2. Connectivity Monitor & Sync
   useEffect(() => {
@@ -73,6 +119,21 @@ export default function QuizScreen({ route, navigation }) {
       }
     });
     return () => unsubscribe();
+  }, []);
+
+  // Load current user profile for visual watermarking
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userJson = await AsyncStorage.getItem('auth_user');
+        if (userJson) {
+          setCurrentUser(JSON.parse(userJson));
+        }
+      } catch (err) {
+        console.warn('Failed to load user info', err);
+      }
+    };
+    loadUser();
   }, []);
 
   const syncPendingSubmissions = async () => {
@@ -328,11 +389,30 @@ export default function QuizScreen({ route, navigation }) {
   const handleAnswerSubmit = async () => {
     const isMcq = currentQuestion.type === 'mcq';
     const isTf = currentQuestion.type === 'tf';
+    const isMultiSelect = currentQuestion.type === 'multi_select';
+    const isOrdering = currentQuestion.type === 'ordering';
+    const isMatching = currentQuestion.type === 'matching';
     
     let answerGiven = '';
-    if (isMcq) answerGiven = selectedOption;
-    else if (isTf) answerGiven = selectedOption;
-    else answerGiven = shortAnswer.trim();
+    if (isMcq || isTf) {
+      answerGiven = selectedOption;
+    } else if (isMultiSelect) {
+      answerGiven = [...selectedOptions].sort().join(',');
+    } else if (isOrdering) {
+      answerGiven = orderedItems.join(',');
+    } else if (isMatching) {
+      const hasEmpty = Object.values(matchingSelections).some(v => !v);
+      if (hasEmpty) {
+        Alert.alert('Input Needed', 'Please complete matching all pairs before submitting.');
+        return;
+      }
+      answerGiven = Object.entries(matchingSelections)
+        .map(([key, val]) => `${key}|${val}`)
+        .sort()
+        .join(',');
+    } else {
+      answerGiven = shortAnswer.trim();
+    }
 
     if (!answerGiven) {
       Alert.alert('Input Needed', 'Please provide an answer before submitting.');
@@ -342,6 +422,16 @@ export default function QuizScreen({ route, navigation }) {
     let isCorrect = false;
     if (isMcq || isTf) {
       isCorrect = answerGiven.toLowerCase() === currentQuestion.correctAnswer.toLowerCase();
+    } else if (isMultiSelect) {
+      const correctSet = new Set(currentQuestion.correctAnswer.split(',').map(s => s.trim().toLowerCase()));
+      const givenSet = new Set(selectedOptions.map(s => s.trim().toLowerCase()));
+      isCorrect = correctSet.size === givenSet.size && [...correctSet].every(item => givenSet.has(item));
+    } else if (isOrdering) {
+      isCorrect = answerGiven.toLowerCase() === currentQuestion.correctAnswer.toLowerCase();
+    } else if (isMatching) {
+      const correctPairs = currentQuestion.correctAnswer.split(',').map(p => p.trim().toLowerCase());
+      const givenPairs = answerGiven.split(',').map(p => p.trim().toLowerCase());
+      isCorrect = correctPairs.length === givenPairs.length && correctPairs.every(p => givenPairs.includes(p));
     } else {
       const keywords = currentQuestion.correctAnswer.toLowerCase().split(' ');
       isCorrect = keywords.some(keyword => answerGiven.toLowerCase().includes(keyword));
@@ -552,7 +642,8 @@ export default function QuizScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
       {/* Offline Status Banner */}
       {isOffline && (
         <View style={{ backgroundColor: '#B91C1C', padding: 10, borderRadius: 10, marginBottom: 16, alignItems: 'center' }}>
@@ -691,7 +782,166 @@ export default function QuizScreen({ route, navigation }) {
               autoFocus
               value={shortAnswer}
               onChangeText={setShortAnswer}
+              contextMenuHidden={true}
             />
+          </View>
+        )}
+
+        {currentQuestion.type === 'multi_select' && (
+          <View style={styles.optionsContainer}>
+            <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: 10, fontWeight: 'bold' }}>☑️ Select all that apply:</Text>
+            {currentQuestion.options.map((opt, idx) => {
+              const isSelected = selectedOptions.includes(opt);
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.optionBtn,
+                    isSelected && styles.optionBtnActive
+                  ]}
+                  onPress={() => {
+                    if (selectedOptions.includes(opt)) {
+                      setSelectedOptions(prev => prev.filter(item => item !== opt));
+                    } else {
+                      setSelectedOptions(prev => [...prev, opt]);
+                    }
+                  }}
+                >
+                  <Text style={[
+                    styles.optionText,
+                    isSelected && styles.optionTextActive
+                  ]}>
+                    {isSelected ? '☑️ ' : '☐ '} {opt}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {currentQuestion.type === 'ordering' && (
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: 10, fontWeight: 'bold' }}>↕️ Arrange in the correct order:</Text>
+            {orderedItems.map((item, idx) => (
+              <View key={idx} style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: '#F8FAFC', flex: 1, fontSize: 14 }}>{idx + 1}. {item}</Text>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {idx > 0 && (
+                    <TouchableOpacity
+                      style={{ padding: 8, backgroundColor: colors.border, borderRadius: 6 }}
+                      onPress={() => {
+                        const newItems = [...orderedItems];
+                        const temp = newItems[idx - 1];
+                        newItems[idx - 1] = newItems[idx];
+                        newItems[idx] = temp;
+                        setOrderedItems(newItems);
+                      }}
+                    >
+                      <Text style={{ color: '#F8FAFC', fontSize: 13 }}>▲</Text>
+                    </TouchableOpacity>
+                  )}
+                  {idx < orderedItems.length - 1 && (
+                    <TouchableOpacity
+                      style={{ padding: 8, backgroundColor: colors.border, borderRadius: 6 }}
+                      onPress={() => {
+                        const newItems = [...orderedItems];
+                        const temp = newItems[idx + 1];
+                        newItems[idx + 1] = newItems[idx];
+                        newItems[idx] = temp;
+                        setOrderedItems(newItems);
+                      }}
+                    >
+                      <Text style={{ color: '#F8FAFC', fontSize: 13 }}>▼</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {currentQuestion.type === 'matching' && (
+          <View style={{ gap: 12 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: 5, fontWeight: 'bold' }}>🔗 Match columns by choosing a key, then its matching value:</Text>
+            
+            <View style={{ flexDirection: 'row', gap: 16, marginBottom: 12 }}>
+              {/* Column A (Keys) */}
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' }}>Column A</Text>
+                {matchingKeys.map((k, idx) => {
+                  const matchedVal = matchingSelections[k];
+                  const isActive = activeKey === k;
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      activeOpacity={0.8}
+                      style={{
+                        backgroundColor: isActive ? colors.primary + '33' : colors.card,
+                        borderColor: isActive ? colors.primary : (matchedVal ? '#10B981' : colors.border),
+                        borderWidth: 1.5,
+                        padding: 10,
+                        borderRadius: 8,
+                        minHeight: 50,
+                        justifyContent: 'center'
+                      }}
+                      onPress={() => setActiveKey(k)}
+                    >
+                      <Text style={{ color: '#F8FAFC', fontSize: 13, fontWeight: '600' }}>{k}</Text>
+                      {matchedVal && (
+                        <Text style={{ color: '#10B981', fontSize: 11, marginTop: 4 }}>🔗 Matched: {matchedVal}</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Column B (Values) */}
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' }}>Column B</Text>
+                {matchingValues.map((v, idx) => {
+                  const isAlreadyMatched = Object.values(matchingSelections).includes(v);
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      activeOpacity={0.8}
+                      style={{
+                        backgroundColor: colors.card,
+                        borderColor: isAlreadyMatched ? '#10B981' : colors.border,
+                        borderWidth: 1,
+                        padding: 10,
+                        borderRadius: 8,
+                        minHeight: 50,
+                        justifyContent: 'center',
+                        opacity: isAlreadyMatched ? 0.6 : 1
+                      }}
+                      onPress={() => {
+                        if (activeKey) {
+                          setMatchingSelections(prev => ({ ...prev, [activeKey]: v }));
+                          setActiveKey(null);
+                        } else {
+                          Alert.alert('Selection Required', 'Please select an item from Column A first.');
+                        }
+                      }}
+                    >
+                      <Text style={{ color: '#F8FAFC', fontSize: 13 }}>{v}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={{ alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 8, backgroundColor: colors.border, borderRadius: 6 }}
+              onPress={() => {
+                const cleared = {};
+                matchingKeys.forEach(k => { cleared[k] = ''; });
+                setMatchingSelections(cleared);
+                setActiveKey(null);
+              }}
+            >
+              <Text style={{ color: colors.textMuted, fontSize: 11 }}>Clear All Matches</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -759,7 +1009,42 @@ export default function QuizScreen({ route, navigation }) {
         </View>
       </Modal>
     </ScrollView>
-  );
+
+    {/* Dynamic Visual Watermark Overlay */}
+    {currentUser && (
+      <View 
+        pointerEvents="none" 
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            zIndex: 9999,
+            opacity: 0.04,
+            flexWrap: 'wrap',
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+            alignContent: 'space-around',
+            transform: [{ rotate: '-15deg' }, { scale: 1.2 }]
+          }
+        ]}
+      >
+        {Array.from({ length: 45 }).map((_, i) => (
+          <Text 
+            key={i} 
+            style={{ 
+              color: colors.text || '#FFFFFF', 
+              fontSize: 12, 
+              fontWeight: 'bold', 
+              margin: 20,
+              textTransform: 'uppercase'
+            }}
+          >
+            {currentUser.name} ({currentUser.email ? currentUser.email.split('@')[0] : ''})
+          </Text>
+        ))}
+      </View>
+    )}
+  </View>
+);
 }
 
 const getStyles = (colors, theme) => StyleSheet.create({
