@@ -27,9 +27,21 @@ async function generateQuestions(textInput, numQuestions = 5) {
         system: `You are an expert university professor creating a quiz. Analyze the provided study material. Generate exactly ${numQuestions} distinct questions. Return ONLY a valid JSON array matching this typescript interface:
         interface Question {
           text: string;
-          type: 'mcq' | 'short' | 'tf';
-          options: string[]; // 4 items if type is mcq, empty array if tf or short
-          correctAnswer: string; // the option text for mcq, "True" or "False" for tf, or short keyword for short
+          type: 'mcq' | 'short' | 'tf' | 'ordering' | 'matching' | 'multi_select';
+          options: string[]; 
+          // Instructions for options:
+          // - if type is 'mcq' or 'multi_select': 4 string items (choices)
+          // - if type is 'tf' or 'short': empty array []
+          // - if type is 'ordering': 3 to 5 steps/items in scrambled random order
+          // - if type is 'matching': 3 to 4 pairs in "Key|Value" format, scrambled order (e.g. ["TermB|DefB", "TermA|DefA"])
+          correctAnswer: string; 
+          // Instructions for correctAnswer:
+          // - if type is 'mcq': the exact string text of the correct choice
+          // - if type is 'tf': "True" or "False"
+          // - if type is 'short': keywords/short answer text
+          // - if type is 'ordering': the correct sorted sequence of options joined by commas (e.g., "Step 1,Step 2,Step 3")
+          // - if type is 'matching': the list of correct sorted matching pairs joined by commas (e.g., "TermA|DefA,TermB|DefB")
+          // - if type is 'multi_select': the correct choice texts joined by commas (e.g., "Choice A,Choice C")
           difficulty: 'easy' | 'medium' | 'hard';
           topic: string; // 1-3 words topic representing the core question theme
         }
@@ -236,6 +248,30 @@ function getSimulatedQuestions(textInput, count) {
         correctAnswer: 'False',
         difficulty: 'medium',
         topic: 'Data Structures'
+      },
+      {
+        text: 'Arrange the following sorting algorithms in order of their average-case time complexity, from fastest to slowest.',
+        type: 'ordering',
+        options: ['O(n^2) - Bubble Sort', 'O(n) - Counting Sort', 'O(n log n) - Merge Sort'],
+        correctAnswer: 'O(n) - Counting Sort,O(n log n) - Merge Sort,O(n^2) - Bubble Sort',
+        difficulty: 'medium',
+        topic: 'Algorithms'
+      },
+      {
+        text: 'Match the following network protocols with their typical port numbers.',
+        type: 'matching',
+        options: ['HTTP|80', 'HTTPS|443', 'SSH|22'],
+        correctAnswer: 'HTTP|80,HTTPS|443,SSH|22',
+        difficulty: 'medium',
+        topic: 'Networking'
+      },
+      {
+        text: 'Which of the following are characteristics of a RESTful API? Select all that apply.',
+        type: 'multi_select',
+        options: ['Stateless server operations', 'Use of standard HTTP methods', 'Strict XML schema requirement', 'Stateful connection tracking'],
+        correctAnswer: 'Stateless server operations,Use of standard HTTP methods',
+        difficulty: 'hard',
+        topic: 'Web Services'
       }
     );
   }
