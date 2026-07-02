@@ -8,7 +8,7 @@ const QuestionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['mcq', 'short', 'tf'],
+    enum: ['mcq', 'short', 'tf', 'ordering', 'matching', 'multi_select'],
     required: true
   },
   options: [{
