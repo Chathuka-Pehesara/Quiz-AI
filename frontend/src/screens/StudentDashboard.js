@@ -325,6 +325,7 @@ export default function StudentDashboard({ navigation }) {
   const [userRole, setUserRole] = useState(null);
   const [platformSettings, setPlatformSettings] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardQuizzes, setDashboardQuizzes] = useState([]); // holds active published quizzes for the student's enrolled courses
 
   const [enrollCode, setEnrollCode] = useState('');
   const [battleCode, setBattleCode] = useState('');
@@ -547,6 +548,28 @@ export default function StudentDashboard({ navigation }) {
     }
   }, [isFocused]);
 
+  const fetchDashboardQuizzes = async (coursesList) => {
+    if (!coursesList || coursesList.length === 0) {
+      setDashboardQuizzes([]);
+      return;
+    }
+    const allQuizzes = [];
+    for (const course of coursesList) {
+      try {
+        const courseQuizzes = await api.getCourseQuizzes(course._id);
+        const mapped = courseQuizzes.map(q => ({
+          ...q,
+          courseCode: course.code,
+          courseName: course.name
+        }));
+        allQuizzes.push(...mapped);
+      } catch (err) {
+        console.warn(`Failed to fetch quizzes for course ${course.code}:`, err);
+      }
+    }
+    setDashboardQuizzes(allQuizzes);
+  };
+
   const loadDashboardData = async () => {
     try {
       setLoading(true);
@@ -563,6 +586,10 @@ export default function StudentDashboard({ navigation }) {
 
       const metrics = await api.getStudentDashboard();
       setDashboardData(metrics);
+      
+      if (metrics && metrics.courses) {
+        await fetchDashboardQuizzes(metrics.courses);
+      }
 
       const liveBattlesEnabled = !settings || !settings.toggles || settings.toggles.liveBattles !== false;
       if (liveBattlesEnabled) {
@@ -604,6 +631,10 @@ export default function StudentDashboard({ navigation }) {
       setUser(profile);
       const metrics = await api.getStudentDashboard();
       setDashboardData(metrics);
+
+      if (metrics && metrics.courses) {
+        await fetchDashboardQuizzes(metrics.courses);
+      }
 
       const liveBattlesEnabled = !settings || !settings.toggles || settings.toggles.liveBattles !== false;
       if (liveBattlesEnabled) {
@@ -1340,6 +1371,43 @@ export default function StudentDashboard({ navigation }) {
                 </View>
               );
             })
+          )}
+
+          {/* Available Quizzes Feed */}
+          <Text style={[styles.enrollLabel, { marginTop: 24, marginBottom: 8 }]}>📌 Available Quizzes to Complete</Text>
+          {dashboardQuizzes.length === 0 ? (
+            <View style={[styles.courseCard, { paddingVertical: 20, alignItems: 'center', justifyContent: 'center' }]}>
+              <Ionicons name="sparkles-outline" size={24} color={colors.primary} style={{ marginBottom: 6 }} />
+              <Text style={[styles.courseName, { color: colors.textMuted, fontSize: 13, textAlign: 'center' }]}>No active quizzes pending! You're all caught up.</Text>
+            </View>
+          ) : (
+            dashboardQuizzes.map((quiz) => (
+              <View key={quiz._id} style={[styles.courseCard, { marginBottom: 10 }]}>
+                <View style={styles.courseTopRow}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.courseCode}>{quiz.courseCode} — {quiz.courseName}</Text>
+                    <Text style={styles.courseName} numberOfLines={1}>{quiz.title}</Text>
+                  </View>
+                  <View style={[styles.courseScoreBadge, { backgroundColor: colors.primary + '15' }]}>
+                    <Text style={[styles.courseScoreText, { color: colors.primary }]}>
+                      {quiz.questions.length} Qs
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.courseBottomRow, { marginTop: 10 }]}>
+                  <Text style={[styles.courseQuizzesStatus, { color: colors.textMuted }]}>
+                    Limit: {quiz.timeLimit || 10} mins
+                  </Text>
+                  <AnimatedPressable
+                    style={styles.takeQuizBtn}
+                    onPress={() => handleStartQuiz(quiz._id)}
+                  >
+                    <Text style={styles.takeQuizBtnText}>Start Quiz</Text>
+                    <Ionicons name="chevron-forward" size={10} color={colors.text} style={{ marginLeft: 2 }} />
+                  </AnimatedPressable>
+                </View>
+              </View>
+            ))
           )}
         </ExpandableDeck>
       </ScrollView>

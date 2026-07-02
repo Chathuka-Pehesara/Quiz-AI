@@ -103,6 +103,7 @@ export default function AdminDashboard({ navigation }) {
   const [reviewUserModal, setReviewUserModal] = useState(null); // holds user object to review
   const [editUserModal, setEditUserModal] = useState(null); // holds user object to edit
   const [addUserModalVisible, setAddUserModalVisible] = useState(false);
+  const [linkQuizModal, setLinkQuizModal] = useState(null); // holds quiz object to link to a course
 
   useEffect(() => {
     if (isFocused) {
@@ -206,6 +207,20 @@ export default function AdminDashboard({ navigation }) {
         }
       }
     ]);
+  };
+
+  const handleLinkQuizCourse = async (quizId, courseId) => {
+    setActionLoading(true);
+    try {
+      await api.updateAdminQuizCourse(quizId, courseId);
+      Alert.alert('Success', 'Quiz linked to course registry successfully!');
+      setLinkQuizModal(null);
+      loadData();
+    } catch (err) {
+      Alert.alert('Error Linking Quiz', err.message || 'Failed to update course linkage');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   // 2. User Management Actions
@@ -740,15 +755,33 @@ export default function AdminDashboard({ navigation }) {
               value={aiGenerator.title}
               onChangeText={(txt) => setAiGenerator({ ...aiGenerator, title: txt })}
             />
-            
-            <View style={[styles.pickerContainer, { width: isLargeScreen ? 180 : '100%', marginBottom: 12 }]}>
-              <TextInput
-                style={styles.pickerFakeInput}
-                placeholder="Course (ID/Code)"
-                placeholderTextColor="#71717A"
-                value={aiGenerator.courseId}
-                onChangeText={(txt) => setAiGenerator({ ...aiGenerator, courseId: txt })}
-              />
+            <View style={{ width: isLargeScreen ? 200 : '100%', marginBottom: 12, marginLeft: isLargeScreen ? 12 : 0 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
+                {courses.map(c => {
+                  const isSelected = aiGenerator.courseId === c._id;
+                  return (
+                    <TouchableOpacity
+                      key={c._id}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        borderWidth: 1.5,
+                        backgroundColor: isSelected ? colors.primary + '15' : colors.card,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: 38
+                      }}
+                      onPress={() => setAiGenerator({ ...aiGenerator, courseId: c._id })}
+                    >
+                      <Text style={{ color: isSelected ? colors.primary : colors.textMuted, fontSize: 11, fontWeight: '700' }}>
+                        {c.code}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
           </View>
 
@@ -799,7 +832,7 @@ export default function AdminDashboard({ navigation }) {
               <Text style={[styles.th, { width: 80, textAlign: 'center' }]}>Attempts</Text>
               <Text style={[styles.th, { width: 80, textAlign: 'center' }]}>Avg Score</Text>
               <Text style={[styles.th, { width: 100, textAlign: 'center' }]}>Status</Text>
-              <Text style={[styles.th, { width: 100, textAlign: 'center' }]}>Actions</Text>
+              <Text style={[styles.th, { width: 150, textAlign: 'center' }]}>Actions</Text>
             </View>
 
             {quizzes.length === 0 ? (
@@ -829,9 +862,15 @@ export default function AdminDashboard({ navigation }) {
                       </Text>
                     </View>
                   </View>
-                  <View style={[styles.td, { width: 100, flexDirection: 'row', gap: 6, justifyContent: 'center' }]}>
+                  <View style={[styles.td, { width: 150, flexDirection: 'row', gap: 6, justifyContent: 'center' }]}>
                     <TouchableOpacity 
-                      style={styles.actionBtnDelete}
+                      style={[styles.actionBtnEdit, { paddingVertical: 4, paddingHorizontal: 8 }]}
+                      onPress={() => setLinkQuizModal(quiz)}
+                    >
+                      <Text style={styles.actionBtnTextEdit}>Link</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.actionBtnDelete, { paddingVertical: 4, paddingHorizontal: 8 }]}
                       onPress={() => handleDeleteQuiz(quiz._id)}
                     >
                       <Text style={styles.actionBtnTextDelete}>Delete</Text>
@@ -1642,6 +1681,59 @@ export default function AdminDashboard({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Link Quiz to Course Modal */}
+      {linkQuizModal && (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={!!linkQuizModal}
+          onRequestClose={() => setLinkQuizModal(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { width: '90%', maxWidth: 360, maxHeight: 400 }]}>
+              <Text style={styles.modalTitle}>Link Quiz to Course</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+                Link "{linkQuizModal.title}" to a course registry to associate them:
+              </Text>
+
+              <ScrollView style={{ width: '100%', marginBottom: 16 }} showsVerticalScrollIndicator={true}>
+                {courses.length === 0 ? (
+                  <Text style={{ color: colors.textMuted, textAlign: 'center', paddingVertical: 12 }}>No courses available.</Text>
+                ) : (
+                  courses.map(c => (
+                    <TouchableOpacity
+                      key={c._id}
+                      style={{
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderBottomWidth: 1,
+                        borderBottomColor: colors.border,
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                      onPress={() => handleLinkQuizCourse(linkQuizModal._id, c._id)}
+                    >
+                      <Text style={{ color: colors.text, fontWeight: '700' }}>{c.code}</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, flex: 1, marginLeft: 12, textAlign: 'right' }} numberOfLines={1}>
+                        {c.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: colors.border, alignSelf: 'stretch' }]}
+                onPress={() => setLinkQuizModal(null)}
+              >
+                <Text style={styles.modalBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
