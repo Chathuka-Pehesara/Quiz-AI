@@ -3,13 +3,17 @@ import { getToken } from '../utils/storage';
 
 // Helper to extract the local host IP dynamically from Metro Bundler's script URL.
 // This allows physical devices (connected via same Wi-Fi) to reach the server automatically.
+let cachedHost = null;
+
 const getMetroHost = () => {
+  if (cachedHost) return cachedHost;
   try {
     const scriptURL = NativeModules.SourceCode?.scriptURL;
     if (scriptURL) {
       // e.g. "http://10.188.179.4:8081/index.bundle?platform=android..."
       const host = scriptURL.split('://')[1]?.split('/')[0]?.split(':')[0];
       if (host && host !== 'localhost' && host !== '127.0.0.1') {
+        cachedHost = host;
         return host;
       }
     }
