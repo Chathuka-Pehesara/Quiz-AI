@@ -278,6 +278,30 @@ router.delete('/quizzes/:id', auth('admin'), async (req, res) => {
   }
 });
 
+// Link/Relink quiz to course (Admin only)
+router.patch('/quizzes/:id/course', auth('admin'), async (req, res) => {
+  const { courseId } = req.body;
+  try {
+    const quiz = await Quiz.findById(req.params.id);
+    if (!quiz) {
+      return res.status(404).json({ message: 'Quiz not found' });
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    quiz.course = courseId;
+    await quiz.save();
+
+    res.json({ message: 'Quiz linked to course successfully', quiz });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // 4. Course Management
 // GET all courses with professor name, students count, quiz count, and battle history
 router.get('/courses', auth('admin'), async (req, res) => {
