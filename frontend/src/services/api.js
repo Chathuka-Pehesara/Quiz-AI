@@ -189,6 +189,9 @@ export const api = {
   deleteAdminQuiz: (id) => 
     request(`/admin/quizzes/${id}`, { method: 'DELETE' }),
   
+  updateAdminQuizCourse: (id, courseId) =>
+    request(`/admin/quizzes/${id}/course`, { method: 'PATCH', body: { courseId } }),
+  
   getAdminUsers: (search = '', role = '', flagged = '') => 
     request(`/admin/users?search=${encodeURIComponent(search)}&role=${role}&flagged=${flagged}`, { method: 'GET' }),
   
